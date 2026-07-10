@@ -1,0 +1,4 @@
+# Netlify 빌드 설정 — 저장소를 연결하면 이 파일을 읽어 자동으로 빌드한다
+[build]
+  command = "npm run build"
+  publish = "dist"

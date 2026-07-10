@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <!-- 파란 신발 다리, 왼쪽 방향 (몸에 붙는 지점: 60,12) -->
+  <path d="M60 12 C 63 38, 57 64, 60 86" fill="none" stroke="#f0f0f0" stroke-width="15" stroke-linecap="round"/>
+  <path d="M74 108 v -12 a 14 14 0 0 0 -14 -14 h -2 v 10 h -20 a 10 10 0 0 0 -10 10 v 6 z" fill="#4a7dff" stroke="#1a1a1a" stroke-width="6" stroke-linejoin="round"/>
+</svg>
