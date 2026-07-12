@@ -15,12 +15,12 @@ body {
   overscroll-behavior: none; /* 모바일에서 당겨서 새로고침 방지 */
 }
 
-/* 물리 놀이터: 화면 전체, 깔끔한 어두운 배경 */
+/* 물리 놀이터: 화면 전체 = 방 안. 위쪽은 벽, 아래쪽은 바닥 면 */
 .playground {
   position: fixed;
   inset: 0;
   overflow: hidden;
-  background: #14161a;
+  background: linear-gradient(#20252d, #262c35); /* 벽 */
   touch-action: none; /* 터치가 브라우저 스크롤로 먹히지 않게 (패닝은 직접 구현) */
 }
 
@@ -33,12 +33,65 @@ body {
   will-change: transform;
 }
 
-/* 땅(바닥 면) — 배경보다 살짝 밝은 면으로 바닥을 보여준다 */
+/* 땅(바닥 면) — 아이소메트릭 타일 격자로 비스듬히 내려다보는 깊이감 */
 .ground {
   position: absolute;
   left: 0;
-  background: #20242b;
-  border-top: 2px solid rgba(255, 255, 255, 0.16);
+  z-index: 0;
+  background:
+    repeating-linear-gradient(63deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 46px),
+    repeating-linear-gradient(-63deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 46px),
+    linear-gradient(#333b48, #232831);
+}
+
+/* 방 장식 (액자·창문·러그·화분) */
+.decor {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.decor .frame rect,
+.decor .window rect {
+  fill: rgba(255, 255, 255, 0.05);
+  stroke: rgba(255, 255, 255, 0.35);
+  stroke-width: 3;
+}
+
+.decor .frame .art {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.3);
+  stroke-width: 2.5;
+}
+
+.decor .window line {
+  stroke: rgba(255, 255, 255, 0.35);
+  stroke-width: 3;
+}
+
+.decor .moon {
+  fill: #ffd97a;
+  opacity: 0.85;
+}
+
+.decor .rug {
+  fill: rgba(255, 255, 255, 0.05);
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 2;
+}
+
+.decor .rug-inner {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 2;
+}
+
+.decor .pot {
+  fill: #8a5a44;
+}
+
+.decor .leaf {
+  fill: #3e7c4f;
 }
 
 /* 물리 엔진이 움직이는 사물: 몸 이미지 + 팔다리 레이어를 담는 묶음 */
@@ -46,6 +99,7 @@ body {
   position: absolute;
   top: 0;
   left: 0;
+  z-index: 3; /* 땅 앞쪽까지 내려오므로 가구보다 앞에 그린다 */
   pointer-events: none; /* 입력이 놀이터(container)로 가야 드래그·패닝이 동작 */
   will-change: transform;
   user-select: none;
@@ -68,10 +122,11 @@ body {
   transition: transform 0.35s ease;
 }
 
-/* 농구 골대 */
+/* 농구 골대 — 뒷벽에 걸려 있음 */
 .hoop {
   position: absolute;
   pointer-events: none;
+  z-index: 1;
 }
 
 .hoop .board {
@@ -87,25 +142,29 @@ body {
 }
 
 .hoop .rim {
+  fill: none;
   stroke: #ff8c1a;
-  stroke-width: 6;
-  stroke-linecap: round;
+  stroke-width: 5;
 }
 
-.hoop .rim-tip {
-  fill: #ff8c1a;
-}
-
-/* 책상·의자 */
+/* 책상·의자 — 땅 뒤쪽에 서 있음 */
 .furniture {
   position: absolute;
   pointer-events: none;
+  z-index: 1;
 }
 
 .furniture .frame {
   fill: rgba(255, 255, 255, 0.08);
   stroke: rgba(255, 255, 255, 0.45);
   stroke-width: 2;
+}
+
+/* 가구 윗면 — 내려다보는 각도라 살짝 밝다 */
+.furniture .top {
+  fill: rgba(255, 255, 255, 0.16);
+  stroke: rgba(255, 255, 255, 0.3);
+  stroke-width: 1.5;
 }
 
 .furniture .book {
@@ -130,14 +189,19 @@ body {
   fill: #ffd97a;
 }
 
-/* 트램펄린 */
+/* 트램펄린 — 땅 중간 깊이에 서 있음 */
 .trampoline {
   position: absolute;
   pointer-events: none;
+  z-index: 2;
 }
 
 .trampoline .tramp-mat {
   fill: #4fc3f7;
+}
+
+.trampoline .tramp-mat-edge {
+  fill: #2f86ad;
 }
 
 .trampoline .tramp-spring {
@@ -157,6 +221,7 @@ body {
   width: 44px;
   height: 44px;
   pointer-events: none;
+  z-index: 4; /* 공부하는 사물 위에 보이게 */
   animation: write 0.5s ease-in-out infinite alternate;
 }
 

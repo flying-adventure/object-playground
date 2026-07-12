@@ -27,21 +27,30 @@ export function createPlayground(container, { onGoal } = {}) {
   let walls = []
   let cameraX = 0
 
-  // 바닥은 선이 아니라 눈에 보이는 면(땅): 화면 높이의 2/3 지점부터 아래가 땅
-  const floorY = Math.round(container.clientHeight * (2 / 3))
+  // 바닥은 눈에 보이는 "면": 화면 2/3 지점(뒷벽과 땅의 경계)부터 아래 전체가 땅.
+  // 사물은 화면 맨 아래(땅의 앞쪽 끝)까지 떨어지고,
+  // 가구들은 땅 위 여기저기(서로 다른 깊이)에 흩어져 선다.
+  const wallY = Math.round(container.clientHeight * (2 / 3))
+  const band = Math.round(container.clientHeight * 0.96) - wallY
+  const furnitureBaseY = Math.round(wallY + band * 0.35) // 책상·의자가 서는 곳: 뒤쪽
+  const trampBaseY = Math.round(wallY + band * 0.7) // 트램펄린이 서는 곳: 중간
+
   const groundEl = document.createElement('div')
   groundEl.className = 'ground'
-  groundEl.style.top = `${floorY}px`
+  groundEl.style.top = `${wallY}px`
   groundEl.style.width = `${W}px`
-  groundEl.style.height = `${container.clientHeight - floorY + 100}px` // 화면이 커져도 틈이 없게 여유
+  groundEl.style.height = `${container.clientHeight - wallY + 100}px` // 화면이 커져도 틈이 없게 여유
   worldEl.appendChild(groundEl)
 
-  // 바닥 + 월드 양 끝 벽. 화면 크기가 바뀌면 다시 만든다
+  // 방 장식: 벽의 액자·창문, 바닥의 러그, 화분
+  worldEl.insertAdjacentHTML('beforeend', decorSvg(W, container.clientHeight, wallY, band))
+
+  // 바닥(화면 맨 아래) + 월드 양 끝 벽. 화면 크기가 바뀌면 다시 만든다
   function rebuildWalls() {
     const h = container.clientHeight
     for (const wall of walls) Composite.remove(engine.world, wall)
     walls = [
-      Bodies.rectangle(W / 2, floorY + WALL / 2, W + WALL * 2, WALL, { isStatic: true }),
+      Bodies.rectangle(W / 2, h + WALL / 2, W + WALL * 2, WALL, { isStatic: true }),
       Bodies.rectangle(-WALL / 2, h / 2, WALL, h * 5, { isStatic: true }),
       Bodies.rectangle(W + WALL / 2, h / 2, WALL, h * 5, { isStatic: true }),
     ]
@@ -50,8 +59,8 @@ export function createPlayground(container, { onGoal } = {}) {
   rebuildWalls()
   window.addEventListener('resize', rebuildWalls)
 
-  // ── 농구 골대 (월드 오른쪽 끝) ──
-  const rimY = Math.max(floorY - 200, 160) // 링 높이: 땅에서 200px 위
+  // ── 농구 골대 (월드 오른쪽 끝, 뒷벽에 걸린 느낌) ──
+  const rimY = Math.max(wallY - 60, 160) // 링 높이: 뒷벽 경계보다 60px 위
   const boardLeft = W - 34 // 백보드 왼쪽 면 x
   const tipX = boardLeft - RIM_LEN // 링 앞쪽 끝 x
   const sensor = Bodies.rectangle(tipX + RIM_LEN / 2, rimY + 22, RIM_LEN - 40, 6, {
@@ -78,21 +87,21 @@ export function createPlayground(container, { onGoal } = {}) {
     }
   })
 
-  // ── 책상·의자 (월드 중간) — 사물을 의자에 앉히면 공부한다 ──
+  // ── 책상·의자 (월드 중간, 땅의 뒤쪽에 서 있음) — 사물을 의자에 앉히면 공부한다 ──
   const chairX = W * 0.45
-  const seatY = floorY - 50 // 앉는 판 윗면 높이
+  const seatY = furnitureBaseY - 50 // 앉는 판 윗면 높이
   const deskX = chairX + 150
-  const deskTopY = floorY - 92 // 책상 상판 윗면 높이
+  const deskTopY = furnitureBaseY - 92 // 책상 상판 윗면 높이
   Composite.add(engine.world, [
     Bodies.rectangle(chairX, seatY + 4, 100, 8, { isStatic: true }), // 앉는 판
     Bodies.rectangle(chairX - 52, seatY - 37, 8, 90, { isStatic: true }), // 등받이
-    Bodies.rectangle(chairX - 38, (seatY + 8 + floorY) / 2, 7, floorY - seatY - 8, { isStatic: true }),
-    Bodies.rectangle(chairX + 38, (seatY + 8 + floorY) / 2, 7, floorY - seatY - 8, { isStatic: true }),
+    Bodies.rectangle(chairX - 38, (seatY + 8 + furnitureBaseY) / 2, 7, furnitureBaseY - seatY - 8, { isStatic: true }),
+    Bodies.rectangle(chairX + 38, (seatY + 8 + furnitureBaseY) / 2, 7, furnitureBaseY - seatY - 8, { isStatic: true }),
     Bodies.rectangle(deskX, deskTopY + 5, 170, 10, { isStatic: true }), // 책상 상판
-    Bodies.rectangle(deskX - 76, (deskTopY + 10 + floorY) / 2, 8, floorY - deskTopY - 10, { isStatic: true }),
-    Bodies.rectangle(deskX + 76, (deskTopY + 10 + floorY) / 2, 8, floorY - deskTopY - 10, { isStatic: true }),
+    Bodies.rectangle(deskX - 76, (deskTopY + 10 + furnitureBaseY) / 2, 8, furnitureBaseY - deskTopY - 10, { isStatic: true }),
+    Bodies.rectangle(deskX + 76, (deskTopY + 10 + furnitureBaseY) / 2, 8, furnitureBaseY - deskTopY - 10, { isStatic: true }),
   ])
-  worldEl.insertAdjacentHTML('beforeend', furnitureSvg(chairX, seatY, deskX, deskTopY, floorY))
+  worldEl.insertAdjacentHTML('beforeend', furnitureSvg(chairX, seatY, deskX, deskTopY, furnitureBaseY))
 
   // "공부 중": 의자 위에서 거의 멈춘 사물 하나를 의자 가운데에 챡 앉힌다.
   // 팔다리는 이미지에 구워져 있어 실제로 접을 수는 없으므로,
@@ -139,12 +148,12 @@ export function createPlayground(container, { onGoal } = {}) {
     if (next) beginStudy(next)
   }, 450)
 
-  // ── 트램펄린 (책상과 골대 사이) — 떨어진 사물을 위로 튕겨준다 ──
+  // ── 트램펄린 (책상과 골대 사이, 땅의 중간 깊이에 서 있음) — 떨어진 사물을 위로 튕겨준다 ──
   const trampX = W * 0.72
-  const trampY = floorY - 32 // 매트 윗면 높이
+  const trampY = trampBaseY - 32 // 매트 윗면 높이
   const trampMat = Bodies.rectangle(trampX, trampY + 4, 120, 8, { isStatic: true })
   Composite.add(engine.world, trampMat)
-  worldEl.insertAdjacentHTML('beforeend', trampolineSvg(trampX, trampY, floorY))
+  worldEl.insertAdjacentHTML('beforeend', trampolineSvg(trampX, trampY, trampBaseY))
 
   // 아래로 떨어지다 매트에 닿은 사물만 위로 튕긴다 (낙하 속도에 비례, 최소 14 ~ 최대 26)
   Events.on(engine, 'collisionStart', (e) => {
@@ -218,7 +227,7 @@ export function createPlayground(container, { onGoal } = {}) {
   const runner = Runner.create()
   Runner.run(runner, engine)
 
-  // 사물 추가: 지금 보이는 화면 위쪽 랜덤 위치에서 떨어뜨린다
+  // 사물 추가: 지금 보이는 화면 위쪽 랜덤 위치에서 떨어뜨린다 (화면 맨 아래까지)
   // spec: { url(몸 이미지), w, h, limbs(팔다리 부품 데이터, 옛 데이터는 null) }
   function addObject(spec) {
     const { url, w, h } = spec
@@ -288,8 +297,11 @@ function furnitureSvg(chairX, seatY, deskX, deskTopY, floorY) {
       <rect class="frame" x="${X(chairX - 50)}" y="${Y(seatY)}" width="100" height="8" rx="3"/>
       <rect class="frame" x="${X(chairX - 41)}" y="${Y(seatY + 8)}" width="7" height="${(floorY - seatY - 8).toFixed(1)}"/>
       <rect class="frame" x="${X(chairX + 34)}" y="${Y(seatY + 8)}" width="7" height="${(floorY - seatY - 8).toFixed(1)}"/>
-      <!-- 책상: 상판·다리 -->
+      <!-- 의자 앉는 판 윗면 (내려다보는 각도) -->
+      <path class="top" d="M${X(chairX - 50)} ${Y(seatY)} l 14 -9 l 100 0 l -14 9 z"/>
+      <!-- 책상: 상판(옆면+윗면)·다리 -->
       <rect class="frame" x="${X(deskX - 85)}" y="${Y(deskTopY)}" width="170" height="10" rx="3"/>
+      <path class="top" d="M${X(deskX - 85)} ${Y(deskTopY)} l 18 -12 l 170 0 l -18 12 z"/>
       <rect class="frame" x="${X(deskX - 80)}" y="${Y(deskTopY + 10)}" width="8" height="${(floorY - deskTopY - 10).toFixed(1)}"/>
       <rect class="frame" x="${X(deskX + 72)}" y="${Y(deskTopY + 10)}" width="8" height="${(floorY - deskTopY - 10).toFixed(1)}"/>
       <!-- 펼친 책 -->
@@ -299,6 +311,47 @@ function furnitureSvg(chairX, seatY, deskX, deskTopY, floorY) {
       <rect class="lamp-stem" x="${X(deskX + 50)}" y="${Y(deskTopY - 40)}" width="4" height="40"/>
       <path class="lamp-shade" d="M${X(deskX + 38)} ${Y(deskTopY - 40)} L${X(deskX + 66)} ${Y(deskTopY - 40)} L${X(deskX + 59)} ${Y(deskTopY - 55)} L${X(deskX + 45)} ${Y(deskTopY - 55)} z"/>
       <circle class="lamp-bulb" cx="${X(deskX + 52)}" cy="${Y(deskTopY - 37)}" r="3.5"/>
+    </svg>`
+}
+
+// 방 장식 그림(SVG): 벽 액자·창문(달), 바닥 러그, 화분
+function decorSvg(W, H, wallY, band) {
+  const frameY = Math.max(wallY - 210, 40)
+  const f1 = W * 0.16
+  const f2 = W * 0.52
+  const winX = W * 0.82
+  const rugX = W * 0.2
+  const rugY = wallY + band * 0.55
+  const plantX = W * 0.38
+  const plantBase = wallY + band * 0.35
+  return `
+    <svg class="decor" width="${W}" height="${H}" style="left:0;top:0">
+      <!-- 벽 액자 -->
+      <g class="frame" transform="translate(${f1} ${frameY})">
+        <rect x="0" y="0" width="90" height="66" rx="6"/>
+        <path class="art" d="M14 48 L34 26 L48 40 L62 22 L76 48"/>
+      </g>
+      <g class="frame" transform="translate(${f2} ${frameY - 14})">
+        <rect x="0" y="0" width="66" height="80" rx="6"/>
+        <circle class="art" cx="33" cy="40" r="18"/>
+      </g>
+      <!-- 창문 (달이 보이는) -->
+      <g class="window" transform="translate(${winX} ${frameY - 20})">
+        <rect x="0" y="0" width="110" height="130" rx="8"/>
+        <line x1="55" y1="4" x2="55" y2="126"/>
+        <line x1="4" y1="65" x2="106" y2="65"/>
+        <circle class="moon" cx="80" cy="34" r="13"/>
+      </g>
+      <!-- 바닥 러그 -->
+      <ellipse class="rug" cx="${rugX}" cy="${rugY}" rx="140" ry="30"/>
+      <ellipse class="rug-inner" cx="${rugX}" cy="${rugY}" rx="95" ry="19"/>
+      <!-- 화분 -->
+      <g class="plant" transform="translate(${plantX} ${plantBase})">
+        <ellipse class="leaf" cx="0" cy="-46" rx="8" ry="22"/>
+        <ellipse class="leaf" cx="-14" cy="-38" rx="8" ry="20" transform="rotate(-28 -14 -38)"/>
+        <ellipse class="leaf" cx="14" cy="-38" rx="8" ry="20" transform="rotate(28 14 -38)"/>
+        <path class="pot" d="M-11 0 L11 0 L15 -22 L-15 -22 Z"/>
+      </g>
     </svg>`
 }
 
@@ -323,8 +376,9 @@ function trampolineSvg(trampX, trampY, floorY) {
   const Y = (wy) => (wy - top).toFixed(1)
   return `
     <svg class="trampoline" width="150" height="${Math.ceil(floorY - top)}" style="left:${left}px;top:${top}px">
-      <!-- 매트 -->
-      <rect class="tramp-mat" x="${X(trampX - 60)}" y="${Y(trampY)}" width="120" height="7" rx="3.5"/>
+      <!-- 매트: 위에서 본 원(타원) -->
+      <ellipse class="tramp-mat-edge" cx="${X(trampX)}" cy="${Y(trampY + 7)}" rx="60" ry="10"/>
+      <ellipse class="tramp-mat" cx="${X(trampX)}" cy="${Y(trampY + 2)}" rx="60" ry="10"/>
       <!-- 스프링 (지그재그) -->
       <path class="tramp-spring" d="M${X(trampX - 56)} ${Y(trampY + 7)} l 4 5 l -6 4 l 6 4" fill="none"/>
       <path class="tramp-spring" d="M${X(trampX + 56)} ${Y(trampY + 7)} l -4 5 l 6 4 l -6 4" fill="none"/>
@@ -354,7 +408,6 @@ function hoopSvg(tipX, rimY, boardLeft) {
       <path class="net" d="${netLines}
         M${bots[0]} ${crossY1} L${bots[4]} ${crossY1}
         M${bots[0]} ${crossY2} L${bots[4]} ${crossY2}"/>
-      <line class="rim" x1="${rx}" y1="${ry}" x2="${bx}" y2="${ry}"/>
-      <circle class="rim-tip" cx="${rx}" cy="${ry}" r="6"/>
+      <ellipse class="rim" cx="${(rx + bx) / 2}" cy="${ry}" rx="${(bx - rx) / 2}" ry="8"/>
     </svg>`
 }
