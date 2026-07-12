@@ -41,7 +41,7 @@ body {
   border-top: 2px solid rgba(255, 255, 255, 0.16);
 }
 
-/* 물리 엔진이 움직이는 사물 이미지 */
+/* 물리 엔진이 움직이는 사물: 몸 이미지 + 팔다리 레이어를 담는 묶음 */
 .obj {
   position: absolute;
   top: 0;
@@ -49,7 +49,23 @@ body {
   pointer-events: none; /* 입력이 놀이터(container)로 가야 드래그·패닝이 동작 */
   will-change: transform;
   user-select: none;
+}
+
+.obj img {
+  position: absolute;
   -webkit-user-drag: none;
+}
+
+.obj .body {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* 팔다리: 붙는 지점을 축으로 회전 — 포즈가 바뀌면 부드럽게 움직인다 */
+.obj .limb {
+  transition: transform 0.35s ease;
 }
 
 /* 농구 골대 */

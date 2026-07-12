@@ -1,81 +1,39 @@
-// 누끼 이미지에 카툰 팔다리를 랜덤으로 붙여 PNG 한 장으로 합성하는 모듈.
-// 팔다리 그림은 임시(placeholder) SVG — 나중에 진짜 에셋으로 파일만 교체하면 된다.
-import { blobToImage, loadImage } from './imageUtils'
-import armWave from '../assets/limbs/arm-wave.svg'
-import armStraight from '../assets/limbs/arm-straight.svg'
-import armDown from '../assets/limbs/arm-down.svg'
-import legRed from '../assets/limbs/leg-red.svg'
-import legBlue from '../assets/limbs/leg-blue.svg'
-import legYellow from '../assets/limbs/leg-yellow.svg'
-
-// root: 팔다리가 몸에 붙는 지점의 좌표 (SVG viewBox 120x120 기준)
-const ARMS = [
-  { url: armWave, root: [12, 62] },
-  { url: armStraight, root: [12, 60] },
-  { url: armDown, root: [12, 54] },
-]
-const LEGS = [
-  { url: legRed, root: [60, 12] },
-  { url: legBlue, root: [60, 12] },
-  { url: legYellow, root: [60, 12] },
-]
-const REACH = 95 // 팔다리 SVG에서 root부터 끝까지의 대략적인 길이(px)
+// 누끼 이미지에서 몸을 잘라내고, 붙일 팔다리를 "부품 데이터"로 고른다.
+// 팔다리를 이미지에 합성하지 않으므로 렌더링(objectView.js)에서
+// 부품을 회전시켜 앉기 같은 포즈를 만들 수 있다.
+import { blobToImage } from './imageUtils'
+import { ARM_KINDS, LEG_KINDS } from './limbAssets'
 
 const rand = (min, max) => min + Math.random() * (max - min)
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)]
-const clamp = (v, min, max) => Math.min(Math.max(v, min), max)
 
-// 누끼 PNG Blob → 팔다리가 합성된 PNG { blob, width, height }
-export async function attachLimbs(cutoutBlob) {
+// 누끼 PNG → { bodyBlob(몸만 잘라낸 PNG), width, height, limbs(팔다리 부품 데이터) }
+export async function generateLimbs(cutoutBlob) {
   const img = await blobToImage(cutoutBlob)
 
-  // 1) 투명하지 않은 픽셀 영역(= 실제 사물)의 바운딩 박스 찾기
+  // 1) 투명하지 않은 픽셀 영역(= 실제 사물)만 잘라낸다
   const src = canvasOf(img)
   const box = findOpaqueBox(src)
   if (!box) throw new Error('누끼 결과가 비어 있음')
-
-  // 2) 팔다리 길이는 몸 크기에 비례 (너무 작거나 크지 않게 제한)
-  const scale = clamp(Math.max(box.w, box.h) * 0.5, 50, 220) / REACH
-  const pad = 120 * scale // 팔다리가 몸 밖으로 뻗을 수 있는 여백
-
+  const margin = 2
   const out = document.createElement('canvas')
-  out.width = Math.ceil(box.w + pad * 2)
-  out.height = Math.ceil(box.h + pad * 2)
-  const ctx = out.getContext('2d')
-  const bx = pad // 몸이 그려질 위치
-  const by = pad
+  out.width = box.w + margin * 2
+  out.height = box.h + margin * 2
+  out.getContext('2d').drawImage(src, box.x, box.y, box.w, box.h, margin, margin, box.w, box.h)
+  const bodyBlob = await new Promise((resolve) => out.toBlob(resolve, 'image/png'))
 
-  // 3) 팔다리를 먼저 그리고(몸 뒤에 깔리도록) 몸을 나중에 그린다
-  const armL = pick(ARMS)
-  const armR = pick(ARMS)
-  const legL = pick(LEGS)
-  const legR = pick(LEGS)
-  const [armLImg, armRImg, legLImg, legRImg] = await Promise.all(
-    [armL, armR, legL, legR].map((l) => loadImage(l.url)),
-  )
+  // 2) 팔다리 부품 랜덤 선택 — ax/ay는 몸 대비 비율 좌표(0~1), angle은 기본 각도
+  const limbs = {
+    size: 0.63, // 팔다리 그림 크기 = 몸 긴 변 대비 비율
+    parts: [
+      { role: 'armL', kind: pick(ARM_KINDS), ax: 0.06, ay: rand(0.25, 0.45), angle: rand(-0.25, 0.25), flip: true },
+      { role: 'armR', kind: pick(ARM_KINDS), ax: 0.94, ay: rand(0.25, 0.45), angle: rand(-0.25, 0.25), flip: false },
+      { role: 'legL', kind: pick(LEG_KINDS), ax: rand(0.2, 0.35), ay: 0.96, angle: rand(-0.12, 0.12), flip: Math.random() < 0.5 },
+      { role: 'legR', kind: pick(LEG_KINDS), ax: rand(0.65, 0.8), ay: 0.96, angle: rand(-0.12, 0.12), flip: Math.random() < 0.5 },
+    ],
+  }
 
-  // 어깨는 몸 가장자리보다 살짝 안쪽에 → 붙는 지점이 몸에 가려진다
-  drawLimb(ctx, armLImg, armL.root, bx + box.w * 0.06, by + box.h * rand(0.25, 0.45), rand(-0.25, 0.25), scale, true)
-  drawLimb(ctx, armRImg, armR.root, bx + box.w * 0.94, by + box.h * rand(0.25, 0.45), rand(-0.25, 0.25), scale, false)
-  drawLimb(ctx, legLImg, legL.root, bx + box.w * rand(0.2, 0.35), by + box.h * 0.96, rand(-0.12, 0.12), scale, Math.random() < 0.5)
-  drawLimb(ctx, legRImg, legR.root, bx + box.w * rand(0.65, 0.8), by + box.h * 0.96, rand(-0.12, 0.12), scale, Math.random() < 0.5)
-
-  ctx.drawImage(src, box.x, box.y, box.w, box.h, bx, by, box.w, box.h)
-
-  // 4) 남은 투명 여백을 잘라내고 최종 PNG로
-  const trimmed = trim(out)
-  const blob = await new Promise((resolve) => trimmed.toBlob(resolve, 'image/png'))
-  return { blob, width: trimmed.width, height: trimmed.height }
-}
-
-// (x, y)에 root가 오도록 팔다리를 회전·반전해서 그린다
-function drawLimb(ctx, img, root, x, y, angle, scale, flip) {
-  ctx.save()
-  ctx.translate(x, y)
-  ctx.rotate(angle)
-  ctx.scale(flip ? -scale : scale, scale)
-  ctx.drawImage(img, -root[0], -root[1])
-  ctx.restore()
+  return { bodyBlob, width: out.width, height: out.height, limbs }
 }
 
 function canvasOf(img) {
@@ -103,16 +61,4 @@ function findOpaqueBox(canvas) {
   }
   if (maxX < 0) return null
   return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 }
-}
-
-// 캔버스의 투명 여백을 잘라낸 새 캔버스를 반환
-function trim(canvas) {
-  const box = findOpaqueBox(canvas)
-  if (!box) return canvas
-  const margin = 2
-  const out = document.createElement('canvas')
-  out.width = box.w + margin * 2
-  out.height = box.h + margin * 2
-  out.getContext('2d').drawImage(canvas, box.x, box.y, box.w, box.h, margin, margin, box.w, box.h)
-  return out
 }

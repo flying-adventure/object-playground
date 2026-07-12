@@ -3,6 +3,7 @@
 // 월드는 화면보다 3배 넓다. 빈 곳을 끌면 카메라가 옆으로 움직이고(가로 스크롤),
 // 사물 위에서 끌면 물리 드래그가 된다.
 import Matter from 'matter-js'
+import { createObjectEl, POSES } from './objectView'
 
 const { Engine, Runner, Bodies, Body, Composite, Mouse, MouseConstraint, Events, Query } = Matter
 
@@ -114,12 +115,13 @@ export function createPlayground(container, { onGoal } = {}) {
     Body.setVelocity(body, { x: 0, y: 0 })
     Body.setAngularVelocity(body, 0)
     Body.setAngle(body, 0)
-    item.lean = 0.12 // 책상 쪽으로 살짝 기울인 집중 자세 (그림에만 적용, 물리는 그대로)
+    item.lean = 0.08 // 책상 쪽으로 살짝 기울인 집중 자세 (그림에만 적용, 물리는 그대로)
+    item.setPose(POSES.study) // 다리를 앞으로, 팔을 책상 위로
     const pencil = document.createElement('div')
     pencil.className = 'pencil'
     pencil.innerHTML = pencilSvg()
-    pencil.style.left = `${chairX + w * 0.42 - 12}px` // 오른손 근처
-    pencil.style.top = `${seatY - h * 0.58 - 22}px`
+    pencil.style.left = `${chairX + w * 0.5 + Math.max(w, h) * 0.22 - 12}px` // 오른손 끝 근처
+    pencil.style.top = `${seatY - h * 0.45 - 22}px`
     worldEl.appendChild(pencil)
     student = { item, pencil }
   }
@@ -128,6 +130,7 @@ export function createPlayground(container, { onGoal } = {}) {
     // 공부하던 사물이 의자를 떠났으면(또는 정리됐으면) 연필을 거둔다
     if (student && (!items.includes(student.item) || !isSitting(student.item.body))) {
       student.item.lean = 0
+      student.item.setPose(POSES.idle)
       student.pencil.remove()
       student = null
     }
@@ -216,12 +219,10 @@ export function createPlayground(container, { onGoal } = {}) {
   Runner.run(runner, engine)
 
   // 사물 추가: 지금 보이는 화면 위쪽 랜덤 위치에서 떨어뜨린다
-  function addObject(imageUrl, w, h) {
-    const el = document.createElement('img')
-    el.src = imageUrl
-    el.className = 'obj'
-    el.style.width = `${w}px`
-    el.style.height = `${h}px`
+  // spec: { url(몸 이미지), w, h, limbs(팔다리 부품 데이터, 옛 데이터는 null) }
+  function addObject(spec) {
+    const { url, w, h } = spec
+    const { el, setPose } = createObjectEl(spec)
     worldEl.appendChild(el)
 
     const x = cameraX + w / 2 + Math.random() * Math.max(container.clientWidth - w, 1)
@@ -231,12 +232,12 @@ export function createPlayground(container, { onGoal } = {}) {
     })
     Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.2)
     Composite.add(engine.world, body)
-    items.push({ body, el, w, h })
+    items.push({ body, el, w, h, url, setPose })
 
     while (items.length > MAX_OBJECTS) {
       const old = items.shift()
       Composite.remove(engine.world, old.body)
-      URL.revokeObjectURL(old.el.src)
+      URL.revokeObjectURL(old.url)
       old.el.remove()
     }
   }
@@ -263,7 +264,7 @@ export function createPlayground(container, { onGoal } = {}) {
     container.removeEventListener('touchend', mouse.touchend)
     Composite.clear(engine.world, false)
     Engine.clear(engine)
-    for (const { el } of items) URL.revokeObjectURL(el.src)
+    for (const { url } of items) URL.revokeObjectURL(url)
     items.length = 0
     worldEl.remove()
   }

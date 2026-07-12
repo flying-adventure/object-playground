@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import confetti from 'canvas-confetti'
 import { createPlayground } from './lib/physics'
 import { removeBg, warmup } from './lib/removeBg'
-import { attachLimbs } from './lib/limbs'
+import { generateLimbs } from './lib/limbs'
 import { loadImage } from './lib/imageUtils'
 import { isShared, uploadObject, listRecent, onNewObject } from './lib/store'
 import './App.css'
 
-const DISPLAY_MAX = 150 // 사물 최대 크기(px) — 골대 링(190)을 통과할 수 있어야 한다
+const DISPLAY_MAX = 110 // 사물(몸) 최대 크기(px) — 골대 링(175)을 통과할 수 있어야 한다
 
 export default function App() {
   const groundRef = useRef(null)
@@ -17,14 +17,15 @@ export default function App() {
   const [error, setError] = useState(false)
 
   // 이미지 URL의 원본 크기를 재서 월드에 떨어뜨린다
-  async function dropFromUrl(url) {
+  async function dropFromUrl({ url, limbs }) {
     const img = await loadImage(url)
     const scale = Math.min(DISPLAY_MAX / Math.max(img.naturalWidth, img.naturalHeight), 1)
-    worldRef.current.addObject(
+    worldRef.current.addObject({
       url,
-      Math.round(img.naturalWidth * scale),
-      Math.round(img.naturalHeight * scale),
-    )
+      w: Math.round(img.naturalWidth * scale),
+      h: Math.round(img.naturalHeight * scale),
+      limbs,
+    })
   }
 
   // 물리 세계는 처음 한 번만 만들고, 화면이 사라질 때 정리한다
@@ -48,15 +49,15 @@ export default function App() {
     let unsubscribe = null
     if (isShared) {
       listRecent()
-        .then(async (urls) => {
-          for (const url of urls) {
+        .then(async (objects) => {
+          for (const object of objects) {
             if (cancelled) return
-            await dropFromUrl(url)
+            await dropFromUrl(object)
             await new Promise((resolve) => setTimeout(resolve, 180))
           }
         })
         .catch(console.error)
-      unsubscribe = onNewObject((url) => dropFromUrl(url).catch(console.error))
+      unsubscribe = onNewObject((object) => dropFromUrl(object).catch(console.error))
     }
 
     return () => {
@@ -73,16 +74,17 @@ export default function App() {
     setBusy(true)
     try {
       const cutout = await removeBg(file)
-      const { blob, width, height } = await attachLimbs(cutout)
+      const { bodyBlob, width, height, limbs } = await generateLimbs(cutout)
       const scale = Math.min(DISPLAY_MAX / Math.max(width, height), 1)
       // 내 화면에는 즉시 떨어뜨리고
-      worldRef.current.addObject(
-        URL.createObjectURL(blob),
-        Math.round(width * scale),
-        Math.round(height * scale),
-      )
+      worldRef.current.addObject({
+        url: URL.createObjectURL(bodyBlob),
+        w: Math.round(width * scale),
+        h: Math.round(height * scale),
+        limbs,
+      })
       // 공유 모드면 업로드해서 다른 사람들 화면에도 떨어지게 한다
-      if (isShared) await uploadObject(blob)
+      if (isShared) await uploadObject(bodyBlob, limbs)
     } catch (err) {
       console.error(err)
       setError(true)

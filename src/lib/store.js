@@ -13,8 +13,8 @@ export const isShared = !!supabase // 공유 모드 여부
 
 const seenIds = new Set() // 내가 올린 것이 실시간 알림으로 또 와서 중복되는 것 방지
 
-// 합성 PNG를 저장소에 올리고 목록 테이블에 기록 → 공개 URL 반환
-export async function uploadObject(blob) {
+// 몸 PNG를 저장소에 올리고 팔다리 부품 데이터와 함께 목록 테이블에 기록
+export async function uploadObject(blob, limbs) {
   const path = `${crypto.randomUUID()}.png`
   const { error: uploadError } = await supabase.storage
     .from('objects')
@@ -23,24 +23,23 @@ export async function uploadObject(blob) {
 
   const { data, error } = await supabase
     .from('objects')
-    .insert({ image_path: path })
+    .insert({ image_path: path, limbs })
     .select('id')
     .single()
   if (error) throw error
   seenIds.add(data.id)
-  return publicUrl(path)
 }
 
-// 최근 사물들의 이미지 URL (오래된 것 → 새것 순서)
+// 최근 사물들 { url, limbs } (오래된 것 → 새것 순서)
 export async function listRecent(limit = 30) {
   const { data, error } = await supabase
     .from('objects')
-    .select('id, image_path')
+    .select('id, image_path, limbs')
     .order('created_at', { ascending: false })
     .limit(limit)
   if (error) throw error
   for (const row of data) seenIds.add(row.id)
-  return data.reverse().map((row) => publicUrl(row.image_path))
+  return data.reverse().map((row) => ({ url: publicUrl(row.image_path), limbs: row.limbs }))
 }
 
 // 누군가 새 사물을 올리면 콜백 호출. 반환값은 콜백 해제 함수.
@@ -61,7 +60,8 @@ export function onNewObject(callback) {
         ({ new: row }) => {
           if (seenIds.has(row.id)) return
           seenIds.add(row.id)
-          for (const listener of listeners) listener(publicUrl(row.image_path))
+          const item = { url: publicUrl(row.image_path), limbs: row.limbs }
+          for (const listener of listeners) listener(item)
         },
       )
       .subscribe((status, err) => {
