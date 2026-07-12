@@ -106,6 +106,24 @@ export function createPlayground(container, { onGoal } = {}) {
     }
   }, 650)
 
+  // ── 트램펄린 (책상과 골대 사이) — 떨어진 사물을 위로 튕겨준다 ──
+  const trampX = W * 0.72
+  const trampY = floorY - 48 // 매트 윗면 높이
+  const trampMat = Bodies.rectangle(trampX, trampY + 5, 180, 10, { isStatic: true })
+  Composite.add(engine.world, trampMat)
+  worldEl.insertAdjacentHTML('beforeend', trampolineSvg(trampX, trampY, floorY))
+
+  // 아래로 떨어지다 매트에 닿은 사물만 위로 튕긴다 (낙하 속도에 비례, 최소 14 ~ 최대 26)
+  Events.on(engine, 'collisionStart', (e) => {
+    for (const { bodyA, bodyB } of e.pairs) {
+      const other = bodyA === trampMat ? bodyB : bodyB === trampMat ? bodyA : null
+      if (!other || other.isStatic) continue
+      const vy = other.velocity.y
+      if (vy <= 0) continue
+      Body.setVelocity(other, { x: other.velocity.x, y: -Math.min(Math.max(vy * 1.1, 14), 26) })
+    }
+  })
+
   // 드래그 (마우스·터치 모두 지원)
   const mouse = Mouse.create(container)
   const mouseConstraint = MouseConstraint.create(engine, {
@@ -220,7 +238,7 @@ export function createPlayground(container, { onGoal } = {}) {
   }
 
   // 개발 중 디버깅·자동 테스트용
-  if (import.meta.env.DEV) window.__pg = { Matter, engine, setCamera, studyZone }
+  if (import.meta.env.DEV) window.__pg = { Matter, engine, setCamera, studyZone, trampoline: { x: trampX, y: trampY } }
 
   return { addObject, destroy }
 }
@@ -249,6 +267,25 @@ function furnitureSvg(chairX, seatY, deskX, deskTopY, floorY) {
       <rect class="lamp-stem" x="${X(deskX + 92)}" y="${Y(deskTopY - 64)}" width="6" height="64"/>
       <path class="lamp-shade" d="M${X(deskX + 73)} ${Y(deskTopY - 64)} L${X(deskX + 117)} ${Y(deskTopY - 64)} L${X(deskX + 105)} ${Y(deskTopY - 87)} L${X(deskX + 85)} ${Y(deskTopY - 87)} z"/>
       <circle class="lamp-bulb" cx="${X(deskX + 95)}" cy="${Y(deskTopY - 60)}" r="5"/>
+    </svg>`
+}
+
+// 트램펄린 그림(SVG). 물리 바디와 같은 좌표를 쓰도록 여기서 함께 계산한다
+function trampolineSvg(trampX, trampY, floorY) {
+  const left = trampX - 110
+  const top = trampY - 16
+  const X = (wx) => (wx - left).toFixed(1)
+  const Y = (wy) => (wy - top).toFixed(1)
+  return `
+    <svg class="trampoline" width="220" height="${Math.ceil(floorY - top)}" style="left:${left}px;top:${top}px">
+      <!-- 매트 -->
+      <rect class="tramp-mat" x="${X(trampX - 90)}" y="${Y(trampY)}" width="180" height="9" rx="4.5"/>
+      <!-- 스프링 (지그재그) -->
+      <path class="tramp-spring" d="M${X(trampX - 84)} ${Y(trampY + 9)} l 5 7 l -8 5 l 8 5" fill="none"/>
+      <path class="tramp-spring" d="M${X(trampX + 84)} ${Y(trampY + 9)} l -5 7 l 8 5 l -8 5" fill="none"/>
+      <!-- 다리 (A자) -->
+      <path class="tramp-leg" d="M${X(trampX - 82)} ${Y(trampY + 26)} L${X(trampX - 58)} ${Y(floorY)}" fill="none"/>
+      <path class="tramp-leg" d="M${X(trampX + 82)} ${Y(trampY + 26)} L${X(trampX + 58)} ${Y(floorY)}" fill="none"/>
     </svg>`
 }
 
