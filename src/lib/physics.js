@@ -8,7 +8,7 @@ const { Engine, Runner, Bodies, Body, Composite, Mouse, MouseConstraint, Events,
 
 const MAX_OBJECTS = 40 // 이보다 많아지면 오래된 것부터 제거 (물리 연산 부하 방지)
 const WALL = 200 // 보이지 않는 벽 두께
-const RIM_LEN = 190 // 골대 링 길이 = 사물이 통과할 수 있는 폭
+const RIM_LEN = 175 // 골대 링 길이 = 사물이 통과할 수 있는 폭
 
 const clamp = (v, min, max) => Math.min(Math.max(v, min), max)
 
@@ -50,16 +50,16 @@ export function createPlayground(container, { onGoal } = {}) {
   window.addEventListener('resize', rebuildWalls)
 
   // ── 농구 골대 (월드 오른쪽 끝) ──
-  const rimY = Math.max(floorY - 230, 180) // 링 높이: 땅에서 230px 위
+  const rimY = Math.max(floorY - 200, 160) // 링 높이: 땅에서 200px 위
   const boardLeft = W - 34 // 백보드 왼쪽 면 x
   const tipX = boardLeft - RIM_LEN // 링 앞쪽 끝 x
-  const sensor = Bodies.rectangle(tipX + RIM_LEN / 2, rimY + 26, RIM_LEN - 40, 6, {
+  const sensor = Bodies.rectangle(tipX + RIM_LEN / 2, rimY + 22, RIM_LEN - 40, 6, {
     isStatic: true,
     isSensor: true, // 물리적으로는 그냥 통과되고 충돌 판정만 한다
   })
   Composite.add(engine.world, [
-    Bodies.rectangle(boardLeft + 6, rimY - 55, 12, 190, { isStatic: true }), // 백보드
-    Bodies.circle(tipX, rimY, 7, { isStatic: true }), // 링 앞끝 (여기 맞으면 튕겨나감)
+    Bodies.rectangle(boardLeft + 6, rimY - 45, 12, 150, { isStatic: true }), // 백보드
+    Bodies.circle(tipX, rimY, 6, { isStatic: true }), // 링 앞끝 (여기 맞으면 튕겨나감)
     sensor,
   ])
   worldEl.insertAdjacentHTML('beforeend', hoopSvg(tipX, rimY, boardLeft))
@@ -79,22 +79,22 @@ export function createPlayground(container, { onGoal } = {}) {
 
   // ── 책상·의자 (월드 중간) — 사물을 의자에 앉히면 공부한다 ──
   const chairX = W * 0.45
-  const seatY = floorY - 82 // 앉는 판 윗면 높이
-  const deskX = chairX + 230
-  const deskTopY = floorY - 150 // 책상 상판 윗면 높이
+  const seatY = floorY - 50 // 앉는 판 윗면 높이
+  const deskX = chairX + 150
+  const deskTopY = floorY - 92 // 책상 상판 윗면 높이
   Composite.add(engine.world, [
-    Bodies.rectangle(chairX, seatY + 6, 150, 12, { isStatic: true }), // 앉는 판
-    Bodies.rectangle(chairX - 78, seatY - 59, 12, 142, { isStatic: true }), // 등받이
-    Bodies.rectangle(chairX - 58, (seatY + 12 + floorY) / 2, 10, floorY - seatY - 12, { isStatic: true }),
-    Bodies.rectangle(chairX + 58, (seatY + 12 + floorY) / 2, 10, floorY - seatY - 12, { isStatic: true }),
-    Bodies.rectangle(deskX, deskTopY + 7, 280, 14, { isStatic: true }), // 책상 상판
-    Bodies.rectangle(deskX - 125, (deskTopY + 14 + floorY) / 2, 12, floorY - deskTopY - 14, { isStatic: true }),
-    Bodies.rectangle(deskX + 125, (deskTopY + 14 + floorY) / 2, 12, floorY - deskTopY - 14, { isStatic: true }),
+    Bodies.rectangle(chairX, seatY + 4, 100, 8, { isStatic: true }), // 앉는 판
+    Bodies.rectangle(chairX - 52, seatY - 37, 8, 90, { isStatic: true }), // 등받이
+    Bodies.rectangle(chairX - 38, (seatY + 8 + floorY) / 2, 7, floorY - seatY - 8, { isStatic: true }),
+    Bodies.rectangle(chairX + 38, (seatY + 8 + floorY) / 2, 7, floorY - seatY - 8, { isStatic: true }),
+    Bodies.rectangle(deskX, deskTopY + 5, 170, 10, { isStatic: true }), // 책상 상판
+    Bodies.rectangle(deskX - 76, (deskTopY + 10 + floorY) / 2, 8, floorY - deskTopY - 10, { isStatic: true }),
+    Bodies.rectangle(deskX + 76, (deskTopY + 10 + floorY) / 2, 8, floorY - deskTopY - 10, { isStatic: true }),
   ])
   worldEl.insertAdjacentHTML('beforeend', furnitureSvg(chairX, seatY, deskX, deskTopY, floorY))
 
   // "공부 중" 판정: 의자 위 영역에서 거의 멈춰 있는 사물 → 공부 이모지 발생
-  const studyZone = { x1: chairX - 85, x2: chairX + 85, y1: seatY - 170, y2: seatY }
+  const studyZone = { x1: chairX - 60, x2: chairX + 60, y1: seatY - 160, y2: seatY }
   const STUDY_EMOJIS = ['📖', '✏️', '💡', '🤓', '📚']
   const studyTimer = setInterval(() => {
     for (const { body, h } of items) {
@@ -116,8 +116,8 @@ export function createPlayground(container, { onGoal } = {}) {
 
   // ── 트램펄린 (책상과 골대 사이) — 떨어진 사물을 위로 튕겨준다 ──
   const trampX = W * 0.72
-  const trampY = floorY - 48 // 매트 윗면 높이
-  const trampMat = Bodies.rectangle(trampX, trampY + 5, 180, 10, { isStatic: true })
+  const trampY = floorY - 32 // 매트 윗면 높이
+  const trampMat = Bodies.rectangle(trampX, trampY + 4, 120, 8, { isStatic: true })
   Composite.add(engine.world, trampMat)
   worldEl.insertAdjacentHTML('beforeend', trampolineSvg(trampX, trampY, floorY))
 
@@ -253,71 +253,71 @@ export function createPlayground(container, { onGoal } = {}) {
 
 // 책상·의자 그림(SVG). 물리 바디와 같은 좌표를 쓰도록 여기서 함께 계산한다
 function furnitureSvg(chairX, seatY, deskX, deskTopY, floorY) {
-  const left = chairX - 110
-  const top = floorY - 310
+  const left = chairX - 70
+  const top = floorY - 200
   const X = (wx) => (wx - left).toFixed(1)
   const Y = (wy) => (wy - top).toFixed(1)
   return `
-    <svg class="furniture" width="${Math.ceil(deskX + 160 - left)}" height="${Math.ceil(floorY - top)}" style="left:${left}px;top:${top}px">
+    <svg class="furniture" width="${Math.ceil(deskX + 110 - left)}" height="${Math.ceil(floorY - top)}" style="left:${left}px;top:${top}px">
       <!-- 의자: 등받이·앉는 판·다리 -->
-      <rect class="frame" x="${X(chairX - 84)}" y="${Y(seatY - 130)}" width="12" height="142" rx="4"/>
-      <rect class="frame" x="${X(chairX - 75)}" y="${Y(seatY)}" width="150" height="12" rx="4"/>
-      <rect class="frame" x="${X(chairX - 63)}" y="${Y(seatY + 12)}" width="10" height="${(floorY - seatY - 12).toFixed(1)}"/>
-      <rect class="frame" x="${X(chairX + 53)}" y="${Y(seatY + 12)}" width="10" height="${(floorY - seatY - 12).toFixed(1)}"/>
+      <rect class="frame" x="${X(chairX - 56)}" y="${Y(seatY - 82)}" width="8" height="90" rx="3"/>
+      <rect class="frame" x="${X(chairX - 50)}" y="${Y(seatY)}" width="100" height="8" rx="3"/>
+      <rect class="frame" x="${X(chairX - 41)}" y="${Y(seatY + 8)}" width="7" height="${(floorY - seatY - 8).toFixed(1)}"/>
+      <rect class="frame" x="${X(chairX + 34)}" y="${Y(seatY + 8)}" width="7" height="${(floorY - seatY - 8).toFixed(1)}"/>
       <!-- 책상: 상판·다리 -->
-      <rect class="frame" x="${X(deskX - 140)}" y="${Y(deskTopY)}" width="280" height="14" rx="4"/>
-      <rect class="frame" x="${X(deskX - 131)}" y="${Y(deskTopY + 14)}" width="12" height="${(floorY - deskTopY - 14).toFixed(1)}"/>
-      <rect class="frame" x="${X(deskX + 119)}" y="${Y(deskTopY + 14)}" width="12" height="${(floorY - deskTopY - 14).toFixed(1)}"/>
+      <rect class="frame" x="${X(deskX - 85)}" y="${Y(deskTopY)}" width="170" height="10" rx="3"/>
+      <rect class="frame" x="${X(deskX - 80)}" y="${Y(deskTopY + 10)}" width="8" height="${(floorY - deskTopY - 10).toFixed(1)}"/>
+      <rect class="frame" x="${X(deskX + 72)}" y="${Y(deskTopY + 10)}" width="8" height="${(floorY - deskTopY - 10).toFixed(1)}"/>
       <!-- 펼친 책 -->
-      <path class="book" d="M${X(deskX - 95)} ${Y(deskTopY)} q 25 -16 50 -2 q 25 -14 50 2 l -50 6 z"/>
+      <path class="book" d="M${X(deskX - 58)} ${Y(deskTopY)} q 16 -10 32 -1 q 16 -9 32 1 l -32 4 z"/>
       <!-- 스탠드 조명: 불빛·기둥·갓 -->
-      <circle class="lamp-glow" cx="${X(deskX + 95)}" cy="${Y(deskTopY - 50)}" r="42"/>
-      <rect class="lamp-stem" x="${X(deskX + 92)}" y="${Y(deskTopY - 64)}" width="6" height="64"/>
-      <path class="lamp-shade" d="M${X(deskX + 73)} ${Y(deskTopY - 64)} L${X(deskX + 117)} ${Y(deskTopY - 64)} L${X(deskX + 105)} ${Y(deskTopY - 87)} L${X(deskX + 85)} ${Y(deskTopY - 87)} z"/>
-      <circle class="lamp-bulb" cx="${X(deskX + 95)}" cy="${Y(deskTopY - 60)}" r="5"/>
+      <circle class="lamp-glow" cx="${X(deskX + 52)}" cy="${Y(deskTopY - 30)}" r="27"/>
+      <rect class="lamp-stem" x="${X(deskX + 50)}" y="${Y(deskTopY - 40)}" width="4" height="40"/>
+      <path class="lamp-shade" d="M${X(deskX + 38)} ${Y(deskTopY - 40)} L${X(deskX + 66)} ${Y(deskTopY - 40)} L${X(deskX + 59)} ${Y(deskTopY - 55)} L${X(deskX + 45)} ${Y(deskTopY - 55)} z"/>
+      <circle class="lamp-bulb" cx="${X(deskX + 52)}" cy="${Y(deskTopY - 37)}" r="3.5"/>
     </svg>`
 }
 
 // 트램펄린 그림(SVG). 물리 바디와 같은 좌표를 쓰도록 여기서 함께 계산한다
 function trampolineSvg(trampX, trampY, floorY) {
-  const left = trampX - 110
-  const top = trampY - 16
+  const left = trampX - 75
+  const top = trampY - 12
   const X = (wx) => (wx - left).toFixed(1)
   const Y = (wy) => (wy - top).toFixed(1)
   return `
-    <svg class="trampoline" width="220" height="${Math.ceil(floorY - top)}" style="left:${left}px;top:${top}px">
+    <svg class="trampoline" width="150" height="${Math.ceil(floorY - top)}" style="left:${left}px;top:${top}px">
       <!-- 매트 -->
-      <rect class="tramp-mat" x="${X(trampX - 90)}" y="${Y(trampY)}" width="180" height="9" rx="4.5"/>
+      <rect class="tramp-mat" x="${X(trampX - 60)}" y="${Y(trampY)}" width="120" height="7" rx="3.5"/>
       <!-- 스프링 (지그재그) -->
-      <path class="tramp-spring" d="M${X(trampX - 84)} ${Y(trampY + 9)} l 5 7 l -8 5 l 8 5" fill="none"/>
-      <path class="tramp-spring" d="M${X(trampX + 84)} ${Y(trampY + 9)} l -5 7 l 8 5 l -8 5" fill="none"/>
+      <path class="tramp-spring" d="M${X(trampX - 56)} ${Y(trampY + 7)} l 4 5 l -6 4 l 6 4" fill="none"/>
+      <path class="tramp-spring" d="M${X(trampX + 56)} ${Y(trampY + 7)} l -4 5 l 6 4 l -6 4" fill="none"/>
       <!-- 다리 (A자) -->
-      <path class="tramp-leg" d="M${X(trampX - 82)} ${Y(trampY + 26)} L${X(trampX - 58)} ${Y(floorY)}" fill="none"/>
-      <path class="tramp-leg" d="M${X(trampX + 82)} ${Y(trampY + 26)} L${X(trampX + 58)} ${Y(floorY)}" fill="none"/>
+      <path class="tramp-leg" d="M${X(trampX - 54)} ${Y(trampY + 18)} L${X(trampX - 38)} ${Y(floorY)}" fill="none"/>
+      <path class="tramp-leg" d="M${X(trampX + 54)} ${Y(trampY + 18)} L${X(trampX + 38)} ${Y(floorY)}" fill="none"/>
     </svg>`
 }
 
 // 골대 그림(SVG). 물리 바디와 같은 좌표를 쓰도록 여기서 함께 계산한다
 function hoopSvg(tipX, rimY, boardLeft) {
   const left = tipX - 20
-  const top = rimY - 175
+  const top = rimY - 140
   const rx = tipX - left // SVG 좌표계의 링 앞끝
   const ry = rimY - top
   const bx = boardLeft - left // SVG 좌표계의 백보드
-  const netBottom = ry + 72
+  const netBottom = ry + 56
   // 그물: 링 위 5개 지점에서 아래로 모이는 선들
   const tops = [0.12, 0.31, 0.5, 0.69, 0.88].map((t) => (rx + (bx - rx) * t).toFixed(1))
   const bots = [0.28, 0.39, 0.5, 0.61, 0.72].map((t) => (rx + (bx - rx) * t).toFixed(1))
   const netLines = tops.map((x, i) => `M${x} ${ry} L${bots[i]} ${netBottom}`).join(' ')
-  const crossY1 = ry + 26
-  const crossY2 = ry + 50
+  const crossY1 = ry + 20
+  const crossY2 = ry + 40
   return `
-    <svg class="hoop" width="${bx + 16}" height="${ry + 90}" style="left:${left}px;top:${top}px">
-      <rect class="board" x="${bx}" y="${ry - 150}" width="12" height="190" rx="3"/>
+    <svg class="hoop" width="${bx + 16}" height="${ry + 75}" style="left:${left}px;top:${top}px">
+      <rect class="board" x="${bx}" y="${ry - 120}" width="12" height="150" rx="3"/>
       <path class="net" d="${netLines}
         M${bots[0]} ${crossY1} L${bots[4]} ${crossY1}
         M${bots[0]} ${crossY2} L${bots[4]} ${crossY2}"/>
       <line class="rim" x1="${rx}" y1="${ry}" x2="${bx}" y2="${ry}"/>
-      <circle class="rim-tip" cx="${rx}" cy="${ry}" r="7"/>
+      <circle class="rim-tip" cx="${rx}" cy="${ry}" r="6"/>
     </svg>`
 }
