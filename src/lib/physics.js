@@ -68,6 +68,44 @@ export function createPlayground(container, { onGoal } = {}) {
     }
   })
 
+  // ── 책상·의자 (월드 중간) — 사물을 의자에 앉히면 공부한다 ──
+  const floorY = container.clientHeight
+  const chairX = W * 0.45
+  const seatY = floorY - 82 // 앉는 판 윗면 높이
+  const deskX = chairX + 230
+  const deskTopY = floorY - 150 // 책상 상판 윗면 높이
+  Composite.add(engine.world, [
+    Bodies.rectangle(chairX, seatY + 6, 150, 12, { isStatic: true }), // 앉는 판
+    Bodies.rectangle(chairX - 78, seatY - 59, 12, 142, { isStatic: true }), // 등받이
+    Bodies.rectangle(chairX - 58, (seatY + 12 + floorY) / 2, 10, floorY - seatY - 12, { isStatic: true }),
+    Bodies.rectangle(chairX + 58, (seatY + 12 + floorY) / 2, 10, floorY - seatY - 12, { isStatic: true }),
+    Bodies.rectangle(deskX, deskTopY + 7, 280, 14, { isStatic: true }), // 책상 상판
+    Bodies.rectangle(deskX - 125, (deskTopY + 14 + floorY) / 2, 12, floorY - deskTopY - 14, { isStatic: true }),
+    Bodies.rectangle(deskX + 125, (deskTopY + 14 + floorY) / 2, 12, floorY - deskTopY - 14, { isStatic: true }),
+  ])
+  worldEl.insertAdjacentHTML('beforeend', furnitureSvg(chairX, seatY, deskX, deskTopY, floorY))
+
+  // "공부 중" 판정: 의자 위 영역에서 거의 멈춰 있는 사물 → 공부 이모지 발생
+  const studyZone = { x1: chairX - 85, x2: chairX + 85, y1: seatY - 170, y2: seatY }
+  const STUDY_EMOJIS = ['📖', '✏️', '💡', '🤓', '📚']
+  const studyTimer = setInterval(() => {
+    for (const { body, h } of items) {
+      const { x, y } = body.position
+      const sitting =
+        x > studyZone.x1 && x < studyZone.x2 &&
+        y > studyZone.y1 && y < studyZone.y2 &&
+        body.speed < 1.5
+      if (!sitting) continue
+      const emoji = document.createElement('span')
+      emoji.className = 'study-emoji'
+      emoji.textContent = STUDY_EMOJIS[Math.floor(Math.random() * STUDY_EMOJIS.length)]
+      emoji.style.left = `${x - 10 + (Math.random() - 0.5) * 40}px`
+      emoji.style.top = `${y - h / 2 - 26}px`
+      worldEl.appendChild(emoji)
+      setTimeout(() => emoji.remove(), 1500) // 애니메이션 끝나면 정리
+    }
+  }, 650)
+
   // 드래그 (마우스·터치 모두 지원)
   const mouse = Mouse.create(container)
   const mouseConstraint = MouseConstraint.create(engine, {
@@ -156,6 +194,7 @@ export function createPlayground(container, { onGoal } = {}) {
   }
 
   function destroy() {
+    clearInterval(studyTimer)
     Runner.stop(runner)
     Events.off(engine)
     window.removeEventListener('resize', rebuildWalls)
@@ -181,9 +220,36 @@ export function createPlayground(container, { onGoal } = {}) {
   }
 
   // 개발 중 디버깅·자동 테스트용
-  if (import.meta.env.DEV) window.__pg = { Matter, engine, setCamera }
+  if (import.meta.env.DEV) window.__pg = { Matter, engine, setCamera, studyZone }
 
   return { addObject, destroy }
+}
+
+// 책상·의자 그림(SVG). 물리 바디와 같은 좌표를 쓰도록 여기서 함께 계산한다
+function furnitureSvg(chairX, seatY, deskX, deskTopY, floorY) {
+  const left = chairX - 110
+  const top = floorY - 310
+  const X = (wx) => (wx - left).toFixed(1)
+  const Y = (wy) => (wy - top).toFixed(1)
+  return `
+    <svg class="furniture" width="${Math.ceil(deskX + 160 - left)}" height="${Math.ceil(floorY - top)}" style="left:${left}px;top:${top}px">
+      <!-- 의자: 등받이·앉는 판·다리 -->
+      <rect class="frame" x="${X(chairX - 84)}" y="${Y(seatY - 130)}" width="12" height="142" rx="4"/>
+      <rect class="frame" x="${X(chairX - 75)}" y="${Y(seatY)}" width="150" height="12" rx="4"/>
+      <rect class="frame" x="${X(chairX - 63)}" y="${Y(seatY + 12)}" width="10" height="${(floorY - seatY - 12).toFixed(1)}"/>
+      <rect class="frame" x="${X(chairX + 53)}" y="${Y(seatY + 12)}" width="10" height="${(floorY - seatY - 12).toFixed(1)}"/>
+      <!-- 책상: 상판·다리 -->
+      <rect class="frame" x="${X(deskX - 140)}" y="${Y(deskTopY)}" width="280" height="14" rx="4"/>
+      <rect class="frame" x="${X(deskX - 131)}" y="${Y(deskTopY + 14)}" width="12" height="${(floorY - deskTopY - 14).toFixed(1)}"/>
+      <rect class="frame" x="${X(deskX + 119)}" y="${Y(deskTopY + 14)}" width="12" height="${(floorY - deskTopY - 14).toFixed(1)}"/>
+      <!-- 펼친 책 -->
+      <path class="book" d="M${X(deskX - 95)} ${Y(deskTopY)} q 25 -16 50 -2 q 25 -14 50 2 l -50 6 z"/>
+      <!-- 스탠드 조명: 불빛·기둥·갓 -->
+      <circle class="lamp-glow" cx="${X(deskX + 95)}" cy="${Y(deskTopY - 50)}" r="42"/>
+      <rect class="lamp-stem" x="${X(deskX + 92)}" y="${Y(deskTopY - 64)}" width="6" height="64"/>
+      <path class="lamp-shade" d="M${X(deskX + 73)} ${Y(deskTopY - 64)} L${X(deskX + 117)} ${Y(deskTopY - 64)} L${X(deskX + 105)} ${Y(deskTopY - 87)} L${X(deskX + 85)} ${Y(deskTopY - 87)} z"/>
+      <circle class="lamp-bulb" cx="${X(deskX + 95)}" cy="${Y(deskTopY - 60)}" r="5"/>
+    </svg>`
 }
 
 // 골대 그림(SVG). 물리 바디와 같은 좌표를 쓰도록 여기서 함께 계산한다

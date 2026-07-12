@@ -72,6 +72,62 @@ body {
   fill: #ff8c1a;
 }
 
+/* 책상·의자 */
+.furniture {
+  position: absolute;
+  pointer-events: none;
+}
+
+.furniture .frame {
+  fill: rgba(255, 255, 255, 0.08);
+  stroke: rgba(255, 255, 255, 0.45);
+  stroke-width: 2;
+}
+
+.furniture .book {
+  fill: rgba(255, 255, 255, 0.85);
+}
+
+.furniture .lamp-glow {
+  fill: #ffd97a;
+  opacity: 0.12;
+}
+
+.furniture .lamp-stem {
+  fill: rgba(255, 255, 255, 0.45);
+}
+
+.furniture .lamp-shade {
+  fill: #ffd97a;
+  opacity: 0.9;
+}
+
+.furniture .lamp-bulb {
+  fill: #ffd97a;
+}
+
+/* 의자에 앉은 사물이 공부할 때 떠오르는 이모지 */
+.study-emoji {
+  position: absolute;
+  font-size: 22px;
+  pointer-events: none;
+  animation: float-up 1.4s ease-out forwards;
+}
+
+@keyframes float-up {
+  from {
+    opacity: 0;
+    transform: translateY(0) scale(0.8);
+  }
+  20% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-70px) scale(1.15);
+  }
+}
+
 /* 사진 찍기 버튼 */
 .shoot {
   position: fixed;
