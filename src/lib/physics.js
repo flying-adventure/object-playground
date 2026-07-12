@@ -26,12 +26,21 @@ export function createPlayground(container, { onGoal } = {}) {
   let walls = []
   let cameraX = 0
 
+  // 바닥은 선이 아니라 눈에 보이는 면(땅): 화면 높이의 2/3 지점부터 아래가 땅
+  const floorY = Math.round(container.clientHeight * (2 / 3))
+  const groundEl = document.createElement('div')
+  groundEl.className = 'ground'
+  groundEl.style.top = `${floorY}px`
+  groundEl.style.width = `${W}px`
+  groundEl.style.height = `${container.clientHeight - floorY + 100}px` // 화면이 커져도 틈이 없게 여유
+  worldEl.appendChild(groundEl)
+
   // 바닥 + 월드 양 끝 벽. 화면 크기가 바뀌면 다시 만든다
   function rebuildWalls() {
     const h = container.clientHeight
     for (const wall of walls) Composite.remove(engine.world, wall)
     walls = [
-      Bodies.rectangle(W / 2, h + WALL / 2, W + WALL * 2, WALL, { isStatic: true }),
+      Bodies.rectangle(W / 2, floorY + WALL / 2, W + WALL * 2, WALL, { isStatic: true }),
       Bodies.rectangle(-WALL / 2, h / 2, WALL, h * 5, { isStatic: true }),
       Bodies.rectangle(W + WALL / 2, h / 2, WALL, h * 5, { isStatic: true }),
     ]
@@ -41,7 +50,7 @@ export function createPlayground(container, { onGoal } = {}) {
   window.addEventListener('resize', rebuildWalls)
 
   // ── 농구 골대 (월드 오른쪽 끝) ──
-  const rimY = Math.max(container.clientHeight * 0.42, 220) // 링 높이
+  const rimY = Math.max(floorY - 230, 180) // 링 높이: 땅에서 230px 위
   const boardLeft = W - 34 // 백보드 왼쪽 면 x
   const tipX = boardLeft - RIM_LEN // 링 앞쪽 끝 x
   const sensor = Bodies.rectangle(tipX + RIM_LEN / 2, rimY + 26, RIM_LEN - 40, 6, {
@@ -69,7 +78,6 @@ export function createPlayground(container, { onGoal } = {}) {
   })
 
   // ── 책상·의자 (월드 중간) — 사물을 의자에 앉히면 공부한다 ──
-  const floorY = container.clientHeight
   const chairX = W * 0.45
   const seatY = floorY - 82 // 앉는 판 윗면 높이
   const deskX = chairX + 230

@@ -33,6 +33,14 @@ body {
   will-change: transform;
 }
 
+/* 땅(바닥 면) — 배경보다 살짝 밝은 면으로 바닥을 보여준다 */
+.ground {
+  position: absolute;
+  left: 0;
+  background: #20242b;
+  border-top: 2px solid rgba(255, 255, 255, 0.16);
+}
+
 /* 물리 엔진이 움직이는 사물 이미지 */
 .obj {
   position: absolute;
