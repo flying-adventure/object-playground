@@ -3,8 +3,10 @@
 // 연동 없이 "로컬 전용 모드"로 동작한다 (혼자 노는 놀이터).
 import { createClient } from '@supabase/supabase-js'
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+// 붙여넣기 과정에서 섞여 들어갈 수 있는 공백·줄바꿈 제거 (URL·키에는 원래 공백이 없다)
+const clean = (value) => (value || '').replace(/\s+/g, '')
+const url = clean(import.meta.env.VITE_SUPABASE_URL)
+const anonKey = clean(import.meta.env.VITE_SUPABASE_ANON_KEY)
 const supabase = url && anonKey ? createClient(url, anonKey) : null
 
 export const isShared = !!supabase // 공유 모드 여부
