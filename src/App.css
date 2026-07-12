@@ -135,25 +135,21 @@ body {
   stroke-linecap: round;
 }
 
-/* 의자에 앉은 사물이 공부할 때 떠오르는 이모지 */
-.study-emoji {
+/* 공부하는 사물이 손에 쥔 연필 — 사각사각 쓰는 움직임 */
+.pencil {
   position: absolute;
-  font-size: 22px;
+  width: 44px;
+  height: 44px;
   pointer-events: none;
-  animation: float-up 1.4s ease-out forwards;
+  animation: write 0.5s ease-in-out infinite alternate;
 }
 
-@keyframes float-up {
+@keyframes write {
   from {
-    opacity: 0;
-    transform: translateY(0) scale(0.8);
-  }
-  20% {
-    opacity: 1;
+    transform: translate(0, 0) rotate(-4deg);
   }
   to {
-    opacity: 0;
-    transform: translateY(-70px) scale(1.15);
+    transform: translate(3px, 2px) rotate(5deg);
   }
 }
 

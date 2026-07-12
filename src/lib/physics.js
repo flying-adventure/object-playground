@@ -93,26 +93,48 @@ export function createPlayground(container, { onGoal } = {}) {
   ])
   worldEl.insertAdjacentHTML('beforeend', furnitureSvg(chairX, seatY, deskX, deskTopY, floorY))
 
-  // "공부 중" 판정: 의자 위 영역에서 거의 멈춰 있는 사물 → 공부 이모지 발생
+  // "공부 중": 의자 위에서 거의 멈춘 사물 하나를 의자 가운데에 챡 앉힌다.
+  // 팔다리는 이미지에 구워져 있어 실제로 접을 수는 없으므로,
+  // 자세 스냅 + 책상 쪽 기울임(시각 효과) + 손 위치의 연필로 공부하는 느낌을 낸다.
   const studyZone = { x1: chairX - 60, x2: chairX + 60, y1: seatY - 160, y2: seatY }
-  const STUDY_EMOJIS = ['📖', '✏️', '💡', '🤓', '📚']
+  let student = null // { item, pencil } — 공부 중인 사물은 한 번에 하나
+
+  function isSitting(body) {
+    const { x, y } = body.position
+    return (
+      x > studyZone.x1 && x < studyZone.x2 &&
+      y > studyZone.y1 && y < studyZone.y2 &&
+      body.speed < 1.5
+    )
+  }
+
+  function beginStudy(item) {
+    const { body, w, h } = item
+    Body.setPosition(body, { x: chairX, y: seatY - h / 2 }) // 의자 가운데에 챡
+    Body.setVelocity(body, { x: 0, y: 0 })
+    Body.setAngularVelocity(body, 0)
+    Body.setAngle(body, 0)
+    item.lean = 0.12 // 책상 쪽으로 살짝 기울인 집중 자세 (그림에만 적용, 물리는 그대로)
+    const pencil = document.createElement('div')
+    pencil.className = 'pencil'
+    pencil.innerHTML = pencilSvg()
+    pencil.style.left = `${chairX + w * 0.42 - 12}px` // 오른손 근처
+    pencil.style.top = `${seatY - h * 0.58 - 22}px`
+    worldEl.appendChild(pencil)
+    student = { item, pencil }
+  }
+
   const studyTimer = setInterval(() => {
-    for (const { body, h } of items) {
-      const { x, y } = body.position
-      const sitting =
-        x > studyZone.x1 && x < studyZone.x2 &&
-        y > studyZone.y1 && y < studyZone.y2 &&
-        body.speed < 1.5
-      if (!sitting) continue
-      const emoji = document.createElement('span')
-      emoji.className = 'study-emoji'
-      emoji.textContent = STUDY_EMOJIS[Math.floor(Math.random() * STUDY_EMOJIS.length)]
-      emoji.style.left = `${x - 10 + (Math.random() - 0.5) * 40}px`
-      emoji.style.top = `${y - h / 2 - 26}px`
-      worldEl.appendChild(emoji)
-      setTimeout(() => emoji.remove(), 1500) // 애니메이션 끝나면 정리
+    // 공부하던 사물이 의자를 떠났으면(또는 정리됐으면) 연필을 거둔다
+    if (student && (!items.includes(student.item) || !isSitting(student.item.body))) {
+      student.item.lean = 0
+      student.pencil.remove()
+      student = null
     }
-  }, 650)
+    if (student) return
+    const next = items.find((it) => isSitting(it.body))
+    if (next) beginStudy(next)
+  }, 450)
 
   // ── 트램펄린 (책상과 골대 사이) — 떨어진 사물을 위로 튕겨준다 ──
   const trampX = W * 0.72
@@ -182,10 +204,10 @@ export function createPlayground(container, { onGoal } = {}) {
   }
   container.addEventListener('wheel', onWheel, { passive: false })
 
-  // 매 프레임 물리 위치 → DOM 반영
+  // 매 프레임 물리 위치 → DOM 반영 (lean: 공부 자세용 시각적 기울임)
   function sync() {
-    for (const { body, el, w, h } of items) {
-      el.style.transform = `translate(${body.position.x - w / 2}px, ${body.position.y - h / 2}px) rotate(${body.angle}rad)`
+    for (const { body, el, w, h, lean } of items) {
+      el.style.transform = `translate(${body.position.x - w / 2}px, ${body.position.y - h / 2}px) rotate(${body.angle + (lean || 0)}rad)`
     }
   }
   Events.on(engine, 'afterUpdate', sync)
@@ -221,6 +243,7 @@ export function createPlayground(container, { onGoal } = {}) {
 
   function destroy() {
     clearInterval(studyTimer)
+    if (student) student.pencil.remove()
     Runner.stop(runner)
     Events.off(engine)
     window.removeEventListener('resize', rebuildWalls)
@@ -275,6 +298,19 @@ function furnitureSvg(chairX, seatY, deskX, deskTopY, floorY) {
       <rect class="lamp-stem" x="${X(deskX + 50)}" y="${Y(deskTopY - 40)}" width="4" height="40"/>
       <path class="lamp-shade" d="M${X(deskX + 38)} ${Y(deskTopY - 40)} L${X(deskX + 66)} ${Y(deskTopY - 40)} L${X(deskX + 59)} ${Y(deskTopY - 55)} L${X(deskX + 45)} ${Y(deskTopY - 55)} z"/>
       <circle class="lamp-bulb" cx="${X(deskX + 52)}" cy="${Y(deskTopY - 37)}" r="3.5"/>
+    </svg>`
+}
+
+// 공부하는 사물이 손에 쥐는 연필 그림
+function pencilSvg() {
+  return `
+    <svg width="44" height="44" viewBox="0 0 44 44">
+      <g transform="rotate(40 22 22)">
+        <rect x="4" y="19" width="26" height="7" rx="1.5" fill="#f5b301"/>
+        <polygon points="30 19, 38 22.5, 30 26" fill="#e8c9a0"/>
+        <polygon points="35.4 20.6, 38 22.5, 35.4 24.4" fill="#333"/>
+        <rect x="1" y="19" width="5" height="7" rx="2" fill="#ef6b81"/>
+      </g>
     </svg>`
 }
 
