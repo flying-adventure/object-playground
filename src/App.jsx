@@ -9,7 +9,7 @@ import { computeExtents } from './lib/objectView'
 import './App.css'
 
 // 모든 사물의 전체 크기(팔다리 포함) — 사진이 크든 작든 전부 이 크기로 통일
-const OBJECT_SIZE = 140
+const OBJECT_SIZE = 150
 
 export default function App() {
   const groundRef = useRef(null)

@@ -122,6 +122,7 @@ export function createPlayground(container, { onGoal } = {}) {
 
   function beginStudy(item) {
     const { body, w, h } = item
+    clearTimeout(item.poseTimer) // 점프 자세 예약이 남아 있으면 취소
     Body.setPosition(body, { x: chairX, y: seatY - h / 2 }) // 의자 가운데에 챡
     Body.setVelocity(body, { x: 0, y: 0 })
     Body.setAngularVelocity(body, 0)
@@ -145,7 +146,13 @@ export function createPlayground(container, { onGoal } = {}) {
       student.pencil.remove()
       student = null
     }
-    if (student) return
+    if (student) {
+      // 사각사각: 아래팔과 몸 기울기를 번갈아 움직여 쓰는 동작을 만든다
+      student.tick = !student.tick
+      student.item.setPose(student.tick ? POSES.studyAlt : POSES.study)
+      student.item.lean = student.tick ? 0.06 : 0.09
+      return
+    }
     const next = items.find((it) => isSitting(it.body))
     if (next) beginStudy(next)
   }, 450)
@@ -165,6 +172,13 @@ export function createPlayground(container, { onGoal } = {}) {
       const vy = other.velocity.y
       if (vy <= 0) continue
       Body.setVelocity(other, { x: other.velocity.x, y: -Math.min(Math.max(vy * 1.1, 14), 26) })
+      // 튀어오르는 동안 만세+다리 벌리기 점프 자세
+      const item = items.find((it) => it.body === other)
+      if (item) {
+        item.setPose(POSES.jump)
+        clearTimeout(item.poseTimer)
+        item.poseTimer = setTimeout(() => item.setPose(POSES.idle), 850)
+      }
     }
   })
 

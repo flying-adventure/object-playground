@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <!-- 아래팔: 팔꿈치(14,60) → 손목(46,60) + 흰 장갑 -->
+  <path d="M14 60 L46 60" fill="none" stroke="#f0f0f0" stroke-width="15" stroke-linecap="round"/>
+  <circle cx="58" cy="60" r="13" fill="#ffffff" stroke="#1a1a1a" stroke-width="6"/>
+</svg>

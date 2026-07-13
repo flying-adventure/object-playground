@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
-  <!-- 위로 흔드는 팔 (몸에 붙는 지점: 12,62) -->
-  <path d="M12 62 C 40 60, 64 46, 82 26" fill="none" stroke="#f0f0f0" stroke-width="15" stroke-linecap="round"/>
-  <circle cx="88" cy="19" r="15" fill="#ffffff" stroke="#1a1a1a" stroke-width="6"/>
-</svg>

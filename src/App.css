@@ -116,9 +116,19 @@ body {
   top: 0;
 }
 
-/* 팔다리: 붙는 지점을 축으로 회전 — 포즈가 바뀌면 부드럽게 움직인다 */
-.obj .limb {
-  transition: transform 0.35s ease;
+/* 팔다리: 위마디(어깨·엉덩이 축)와 아래마디(팔꿈치·무릎 축)가 각각 회전 */
+.obj .limb,
+.obj .limb-lower {
+  position: absolute;
+  transition: transform 0.3s ease;
+}
+
+.obj .limb img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
 }
 
 /* 농구 골대 — 뒷벽에 걸려 있음 */

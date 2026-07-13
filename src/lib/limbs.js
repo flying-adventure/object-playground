@@ -28,8 +28,8 @@ export async function generateLimbs(cutoutBlob) {
     parts: [
       { role: 'armL', kind: pick(ARM_KINDS), ax: 0.06, ay: rand(0.25, 0.45), angle: rand(-0.25, 0.25), flip: true },
       { role: 'armR', kind: pick(ARM_KINDS), ax: 0.94, ay: rand(0.25, 0.45), angle: rand(-0.25, 0.25), flip: false },
-      { role: 'legL', kind: pick(LEG_KINDS), ax: rand(0.2, 0.35), ay: 0.96, angle: rand(-0.12, 0.12), flip: Math.random() < 0.5 },
-      { role: 'legR', kind: pick(LEG_KINDS), ax: rand(0.65, 0.8), ay: 0.96, angle: rand(-0.12, 0.12), flip: Math.random() < 0.5 },
+      { role: 'legL', kind: pick(LEG_KINDS), ax: rand(0.2, 0.35), ay: 0.96, angle: rand(-0.12, 0.12), flip: true },
+      { role: 'legR', kind: pick(LEG_KINDS), ax: rand(0.65, 0.8), ay: 0.96, angle: rand(-0.12, 0.12), flip: false },
     ],
   }
 
