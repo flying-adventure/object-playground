@@ -26,6 +26,8 @@ export function createPlayground(container, { onGoal } = {}) {
   const items = [] // { body, el, w, h }
   let walls = []
   let cameraX = 0
+  let cameraY = 0
+  let zoom = 1 // 핀치 확대/축소 배율
 
   // 바닥은 눈에 보이는 "면": 화면 2/3 지점(뒷벽과 땅의 경계)부터 아래 전체가 땅.
   // 사물은 화면 맨 아래(땅의 앞쪽 끝)까지 떨어지고,
@@ -61,7 +63,7 @@ export function createPlayground(container, { onGoal } = {}) {
 
   // ── 농구 골대 (뒷벽, 창문 옆) — 링이 화면 쪽으로 튀어나온 정면 골대 ──
   // 백보드는 뒷벽에 그림으로만 있고(몸체 없음), 링 양쪽 테에만 충돌이 있다
-  const rimY = Math.max(wallY - 60, 160) // 링 높이
+  const rimY = Math.max(wallY - 170, 140) // 링 높이
   const ringCX = W - 130 // 링 중심 x
   const sensor = Bodies.rectangle(ringCX, rimY + 22, RIM_LEN - 40, 6, {
     isStatic: true,
@@ -83,7 +85,7 @@ export function createPlayground(container, { onGoal } = {}) {
       const now = performance.now()
       if (now - (other.lastGoalAt || 0) < 1500) continue // 같은 사물 연속 판정 방지
       other.lastGoalAt = now
-      if (onGoal) onGoal({ x: ringCX - cameraX, y: rimY }) // 화면 좌표로 전달
+      if (onGoal) onGoal({ x: (ringCX - cameraX) * zoom, y: (rimY - cameraY) * zoom }) // 화면 좌표로 전달
     }
   })
 
@@ -181,27 +183,73 @@ export function createPlayground(container, { onGoal } = {}) {
   }
   window.addEventListener('mouseup', releaseDrag)
 
-  // ── 카메라(가로 스크롤) ──
+  // ── 카메라: 가로 스크롤 + 핀치 확대/축소 ──
+  // 화면 좌표 = (월드 좌표 - camera) × zoom. 축소하면 바닥이 화면 아래에 붙도록 세로를 보정한다
+  function applyView() {
+    const cw = container.clientWidth
+    const ch = container.clientHeight
+    cameraX = clamp(cameraX, 0, Math.max(W - cw / zoom, 0))
+    cameraY = zoom > 1 ? clamp(cameraY, 0, ch - ch / zoom) : ch - ch / zoom
+    worldEl.style.transform = `translate3d(${-cameraX * zoom}px, ${-cameraY * zoom}px, 0) scale(${zoom})`
+    Mouse.setScale(mouse, { x: 1 / zoom, y: 1 / zoom }) // 물리 입력 좌표도 줌에 맞춰 보정
+    Mouse.setOffset(mouse, { x: cameraX, y: cameraY })
+  }
   function setCamera(x) {
-    cameraX = clamp(x, 0, W - container.clientWidth)
-    worldEl.style.transform = `translate3d(${-cameraX}px, 0, 0)`
-    Mouse.setOffset(mouse, { x: cameraX, y: 0 }) // 물리 좌표도 카메라만큼 보정
+    cameraX = x
+    applyView()
   }
   setCamera(0)
+  window.addEventListener('resize', applyView)
 
-  // 빈 곳을 끌면 패닝, 사물 위에서 끌면 물리 드래그(Matter가 알아서)
+  // 한 손가락: 빈 곳을 끌면 패닝, 사물 위에서 끌면 물리 드래그(Matter가 알아서)
+  // 두 손가락: 핀치 확대/축소
+  const pointers = new Map() // pointerId → 화면 좌표
   let pan = null
+  let pinch = null
+  function startPinch() {
+    const [p1, p2] = [...pointers.values()]
+    pinch = {
+      dist: Math.hypot(p1.x - p2.x, p1.y - p2.y),
+      zoom,
+      // 두 손가락 가운데 지점의 월드 좌표 — 이 점이 화면에 고정된 채 확대/축소된다
+      worldX: (p1.x + p2.x) / 2 / zoom + cameraX,
+      worldY: (p1.y + p2.y) / 2 / zoom + cameraY,
+    }
+  }
   function onPointerDown(e) {
-    const worldPoint = { x: e.clientX + cameraX, y: e.clientY }
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (pointers.size === 2) {
+      pan = null
+      startPinch()
+      return
+    }
+    const worldPoint = { x: e.clientX / zoom + cameraX, y: e.clientY / zoom + cameraY }
     const hit = Query.point(items.map((it) => it.body), worldPoint)
-    if (hit.length === 0) pan = { id: e.pointerId, startX: e.clientX, startCam: cameraX }
+    if (hit.length === 0) {
+      pan = { id: e.pointerId, startX: e.clientX, startY: e.clientY, camX: cameraX, camY: cameraY }
+    }
   }
   function onPointerMove(e) {
+    if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (pinch && pointers.size >= 2) {
+      mouse.button = -1 // 핀치 중에는 물리 드래그 방지
+      const [p1, p2] = [...pointers.values()]
+      const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y)
+      zoom = clamp((pinch.zoom * dist) / pinch.dist, 0.55, 2.2)
+      cameraX = pinch.worldX - (p1.x + p2.x) / 2 / zoom
+      cameraY = pinch.worldY - (p1.y + p2.y) / 2 / zoom
+      applyView()
+      return
+    }
     if (!pan || e.pointerId !== pan.id) return
     mouse.button = -1 // 패닝 중 카메라가 사물 위를 지나가도 드래그로 낚아채지 않게
-    setCamera(pan.startCam - (e.clientX - pan.startX))
+    cameraX = pan.camX - (e.clientX - pan.startX) / zoom
+    cameraY = pan.camY - (e.clientY - pan.startY) / zoom
+    applyView()
   }
   function onPointerEnd(e) {
+    pointers.delete(e.pointerId)
+    if (pointers.size < 2) pinch = null
     if (pan && e.pointerId === pan.id) pan = null
   }
   container.addEventListener('pointerdown', onPointerDown)
@@ -209,10 +257,19 @@ export function createPlayground(container, { onGoal } = {}) {
   container.addEventListener('pointerup', onPointerEnd)
   container.addEventListener('pointercancel', onPointerEnd)
 
-  // 데스크톱에서는 휠(트랙패드)로도 가로 스크롤
+  // 데스크톱: 휠 = 가로 스크롤, Ctrl+휠(트랙패드 핀치) = 확대/축소
   function onWheel(e) {
     e.preventDefault()
-    setCamera(cameraX + (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY))
+    if (e.ctrlKey) {
+      const worldX = e.clientX / zoom + cameraX
+      const worldY = e.clientY / zoom + cameraY
+      zoom = clamp(zoom * (1 - e.deltaY * 0.002), 0.55, 2.2)
+      cameraX = worldX - e.clientX / zoom
+      cameraY = worldY - e.clientY / zoom
+    } else {
+      cameraX += (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) / zoom
+    }
+    applyView()
   }
   container.addEventListener('wheel', onWheel, { passive: false })
 
@@ -235,7 +292,7 @@ export function createPlayground(container, { onGoal } = {}) {
     const { el, setPose, extW, extH } = createObjectEl(spec)
     worldEl.appendChild(el)
 
-    const x = cameraX + extW / 2 + Math.random() * Math.max(container.clientWidth - extW, 1)
+    const x = cameraX + extW / 2 + Math.random() * Math.max(container.clientWidth / zoom - extW, 1)
     const body = Bodies.rectangle(x, -extH, extW, extH, {
       restitution: 0.3, // 튀는 정도
       friction: 0.5,
@@ -258,6 +315,7 @@ export function createPlayground(container, { onGoal } = {}) {
     Runner.stop(runner)
     Events.off(engine)
     window.removeEventListener('resize', rebuildWalls)
+    window.removeEventListener('resize', applyView)
     window.removeEventListener('mouseup', releaseDrag)
     container.removeEventListener('pointerdown', onPointerDown)
     container.removeEventListener('pointermove', onPointerMove)

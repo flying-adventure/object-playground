@@ -24,12 +24,13 @@ body {
   touch-action: none; /* 터치가 브라우저 스크롤로 먹히지 않게 (패닝은 직접 구현) */
 }
 
-/* 카메라(가로 스크롤)로 움직이는 월드 레이어 */
+/* 카메라(가로 스크롤·핀치 줌)로 움직이는 월드 레이어 */
 .world {
   position: absolute;
   top: 0;
   left: 0;
   height: 100%;
+  transform-origin: 0 0; /* 줌 계산 기준점 = 왼쪽 위 */
   will-change: transform;
 }
 
