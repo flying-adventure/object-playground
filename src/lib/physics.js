@@ -59,20 +59,20 @@ export function createPlayground(container, { onGoal } = {}) {
   rebuildWalls()
   window.addEventListener('resize', rebuildWalls)
 
-  // ── 농구 골대 (월드 오른쪽 끝, 뒷벽에 걸린 느낌) ──
-  const rimY = Math.max(wallY - 60, 160) // 링 높이: 뒷벽 경계보다 60px 위
-  const boardLeft = W - 34 // 백보드 왼쪽 면 x
-  const tipX = boardLeft - RIM_LEN // 링 앞쪽 끝 x
-  const sensor = Bodies.rectangle(tipX + RIM_LEN / 2, rimY + 22, RIM_LEN - 40, 6, {
+  // ── 농구 골대 (뒷벽, 창문 옆) — 링이 화면 쪽으로 튀어나온 정면 골대 ──
+  // 백보드는 뒷벽에 그림으로만 있고(몸체 없음), 링 양쪽 테에만 충돌이 있다
+  const rimY = Math.max(wallY - 60, 160) // 링 높이
+  const ringCX = W - 130 // 링 중심 x
+  const sensor = Bodies.rectangle(ringCX, rimY + 22, RIM_LEN - 40, 6, {
     isStatic: true,
     isSensor: true, // 물리적으로는 그냥 통과되고 충돌 판정만 한다
   })
   Composite.add(engine.world, [
-    Bodies.rectangle(boardLeft + 6, rimY - 45, 12, 150, { isStatic: true }), // 백보드
-    Bodies.circle(tipX, rimY, 6, { isStatic: true }), // 링 앞끝 (여기 맞으면 튕겨나감)
+    Bodies.circle(ringCX - RIM_LEN / 2, rimY, 6, { isStatic: true }), // 링 왼쪽 테
+    Bodies.circle(ringCX + RIM_LEN / 2, rimY, 6, { isStatic: true }), // 링 오른쪽 테
     sensor,
   ])
-  worldEl.insertAdjacentHTML('beforeend', hoopSvg(tipX, rimY, boardLeft))
+  worldEl.insertAdjacentHTML('beforeend', hoopSvg(ringCX, rimY))
 
   // 골 판정: 아래로 떨어지는 중인 사물이 링 안 센서에 닿으면 골인
   Events.on(engine, 'collisionStart', (e) => {
@@ -83,7 +83,7 @@ export function createPlayground(container, { onGoal } = {}) {
       const now = performance.now()
       if (now - (other.lastGoalAt || 0) < 1500) continue // 같은 사물 연속 판정 방지
       other.lastGoalAt = now
-      if (onGoal) onGoal({ x: tipX + RIM_LEN / 2 - cameraX, y: rimY }) // 화면 좌표로 전달
+      if (onGoal) onGoal({ x: ringCX - cameraX, y: rimY }) // 화면 좌표로 전달
     }
   })
 
@@ -129,8 +129,8 @@ export function createPlayground(container, { onGoal } = {}) {
     const pencil = document.createElement('div')
     pencil.className = 'pencil'
     pencil.innerHTML = pencilSvg()
-    pencil.style.left = `${chairX + w * 0.5 + Math.max(w, h) * 0.22 - 12}px` // 오른손 끝 근처
-    pencil.style.top = `${seatY - h * 0.45 - 22}px`
+    pencil.style.left = `${chairX + w * 0.42 - 12}px` // 오른손 끝 근처
+    pencil.style.top = `${seatY - h * 0.52 - 22}px`
     worldEl.appendChild(pencil)
     student = { item, pencil }
   }
@@ -229,19 +229,20 @@ export function createPlayground(container, { onGoal } = {}) {
 
   // 사물 추가: 지금 보이는 화면 위쪽 랜덤 위치에서 떨어뜨린다 (화면 맨 아래까지)
   // spec: { url(몸 이미지), w, h, limbs(팔다리 부품 데이터, 옛 데이터는 null) }
+  // 물리 충돌 상자는 팔다리를 포함한 전체 크기(extW×extH)로 잡는다 → 발이 바닥에 닿는다
   function addObject(spec) {
-    const { url, w, h } = spec
-    const { el, setPose } = createObjectEl(spec)
+    const { url } = spec
+    const { el, setPose, extW, extH } = createObjectEl(spec)
     worldEl.appendChild(el)
 
-    const x = cameraX + w / 2 + Math.random() * Math.max(container.clientWidth - w, 1)
-    const body = Bodies.rectangle(x, -h, w, h, {
+    const x = cameraX + extW / 2 + Math.random() * Math.max(container.clientWidth - extW, 1)
+    const body = Bodies.rectangle(x, -extH, extW, extH, {
       restitution: 0.3, // 튀는 정도
       friction: 0.5,
     })
     Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.2)
     Composite.add(engine.world, body)
-    items.push({ body, el, w, h, url, setPose })
+    items.push({ body, el, w: extW, h: extH, url, setPose })
 
     while (items.length > MAX_OBJECTS) {
       const old = items.shift()
@@ -319,7 +320,7 @@ function decorSvg(W, H, wallY, band) {
   const frameY = Math.max(wallY - 210, 40)
   const f1 = W * 0.16
   const f2 = W * 0.52
-  const winX = W * 0.82
+  const winX = W * 0.72 // 창문 (골대가 그 오른쪽 벽에 걸린다)
   const rugX = W * 0.2
   const rugY = wallY + band * 0.55
   const plantX = W * 0.38
@@ -389,25 +390,28 @@ function trampolineSvg(trampX, trampY, floorY) {
 }
 
 // 골대 그림(SVG). 물리 바디와 같은 좌표를 쓰도록 여기서 함께 계산한다
-function hoopSvg(tipX, rimY, boardLeft) {
-  const left = tipX - 20
-  const top = rimY - 140
-  const rx = tipX - left // SVG 좌표계의 링 앞끝
-  const ry = rimY - top
-  const bx = boardLeft - left // SVG 좌표계의 백보드
-  const netBottom = ry + 56
-  // 그물: 링 위 5개 지점에서 아래로 모이는 선들
-  const tops = [0.12, 0.31, 0.5, 0.69, 0.88].map((t) => (rx + (bx - rx) * t).toFixed(1))
-  const bots = [0.28, 0.39, 0.5, 0.61, 0.72].map((t) => (rx + (bx - rx) * t).toFixed(1))
-  const netLines = tops.map((x, i) => `M${x} ${ry} L${bots[i]} ${netBottom}`).join(' ')
-  const crossY1 = ry + 20
-  const crossY2 = ry + 40
+function hoopSvg(cx, rimY) {
+  const rx = RIM_LEN / 2
+  const bw = 120 // 백보드 폭
+  const bh = 90 // 백보드 높이
+  const left = cx - rx - 24
+  const top = rimY - bh - 40
+  const X = (wx) => (wx - left).toFixed(1)
+  const Y = (wy) => (wy - top).toFixed(1)
+  const netTop = rimY + 8
+  const netBottom = rimY + 56
+  // 그물: 링 타원 아래에서 좁아지며 내려오는 선들
+  const tops = [-0.8, -0.4, 0, 0.4, 0.8].map((t) => X(cx + rx * t))
+  const bots = [-0.45, -0.22, 0, 0.22, 0.45].map((t) => X(cx + rx * t))
+  const netLines = tops.map((x, i) => `M${x} ${Y(netTop)} L${bots[i]} ${Y(netBottom)}`).join(' ')
   return `
-    <svg class="hoop" width="${bx + 16}" height="${ry + 75}" style="left:${left}px;top:${top}px">
-      <rect class="board" x="${bx}" y="${ry - 120}" width="12" height="150" rx="3"/>
+    <svg class="hoop" width="${Math.ceil(rx * 2 + 48)}" height="${Math.ceil(netBottom + 10 - top)}" style="left:${left}px;top:${top}px">
+      <rect class="board" x="${X(cx - bw / 2)}" y="${Y(rimY - bh - 24)}" width="${bw}" height="${bh}" rx="8"/>
+      <rect class="board-inner" x="${X(cx - 26)}" y="${Y(rimY - 66)}" width="52" height="38" rx="4"/>
+      <line class="mount" x1="${X(cx)}" y1="${Y(rimY - 24)}" x2="${X(cx)}" y2="${Y(rimY - 4)}"/>
       <path class="net" d="${netLines}
-        M${bots[0]} ${crossY1} L${bots[4]} ${crossY1}
-        M${bots[0]} ${crossY2} L${bots[4]} ${crossY2}"/>
-      <ellipse class="rim" cx="${(rx + bx) / 2}" cy="${ry}" rx="${(bx - rx) / 2}" ry="8"/>
+        M${bots[0]} ${Y(rimY + 24)} L${bots[4]} ${Y(rimY + 24)}
+        M${bots[0]} ${Y(rimY + 40)} L${bots[4]} ${Y(rimY + 40)}"/>
+      <ellipse class="rim" cx="${X(cx)}" cy="${Y(rimY)}" rx="${rx}" ry="12"/>
     </svg>`
 }

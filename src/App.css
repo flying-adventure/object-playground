@@ -113,8 +113,6 @@ body {
 .obj .body {
   left: 0;
   top: 0;
-  width: 100%;
-  height: 100%;
 }
 
 /* 팔다리: 붙는 지점을 축으로 회전 — 포즈가 바뀌면 부드럽게 움직인다 */
@@ -139,6 +137,17 @@ body {
   fill: none;
   stroke: rgba(255, 255, 255, 0.45);
   stroke-width: 2;
+}
+
+.hoop .board-inner {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.3);
+  stroke-width: 2.5;
+}
+
+.hoop .mount {
+  stroke: rgba(255, 255, 255, 0.45);
+  stroke-width: 4;
 }
 
 .hoop .rim {

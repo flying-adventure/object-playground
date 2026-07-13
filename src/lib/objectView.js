@@ -9,11 +9,23 @@ export const POSES = {
   study: { legL: -1.15, legR: -1.35, armR: 0.35, armL: 0.15 }, // 다리는 책상 쪽으로, 팔은 책상 위로
 }
 
+// 팔다리를 포함한 전체 크기(외곽 상자)를 계산한다.
+// 물리 충돌 상자도 이 크기를 쓰므로 발이 바닥에 닿고, 팔다리가 벽 밖으로 안 나간다
+export function computeExtents(w, h, limbs) {
+  if (!limbs || !limbs.parts) return { extW: w, extH: h, padLeft: 0, padTop: 0 }
+  const limbPx = limbs.size * Math.max(w, h)
+  const padSide = limbPx * 0.8 // 좌우: 뻗은 팔 길이만큼
+  const padTop = limbPx * 0.25 // 위: 들어 올린 손 높이만큼
+  const padBottom = limbPx * 0.75 // 아래: 다리 길이만큼
+  return { extW: w + padSide * 2, extH: h + padTop + padBottom, padLeft: padSide, padTop }
+}
+
 export function createObjectEl({ url, w, h, limbs }) {
+  const { extW, extH, padLeft, padTop } = computeExtents(w, h, limbs)
   const el = document.createElement('div')
   el.className = 'obj'
-  el.style.width = `${w}px`
-  el.style.height = `${h}px`
+  el.style.width = `${extW}px`
+  el.style.height = `${extH}px`
 
   const parts = {} // role → { el, part }
   if (limbs && limbs.parts) {
@@ -28,8 +40,8 @@ export function createObjectEl({ url, w, h, limbs }) {
       limbEl.style.width = `${px}px`
       limbEl.style.height = `${px}px`
       // root가 몸의 부착점(ax, ay)에 오도록 배치하고, root를 회전축으로 삼는다
-      limbEl.style.left = `${part.ax * w - asset.root[0] * k}px`
-      limbEl.style.top = `${part.ay * h - asset.root[1] * k}px`
+      limbEl.style.left = `${padLeft + part.ax * w - asset.root[0] * k}px`
+      limbEl.style.top = `${padTop + part.ay * h - asset.root[1] * k}px`
       limbEl.style.transformOrigin = `${asset.root[0] * k}px ${asset.root[1] * k}px`
       setLimbTransform(limbEl, part, 0)
       el.appendChild(limbEl) // 몸보다 먼저 넣어 몸 뒤에 깔린다
@@ -40,6 +52,10 @@ export function createObjectEl({ url, w, h, limbs }) {
   const bodyEl = document.createElement('img')
   bodyEl.src = url
   bodyEl.className = 'body'
+  bodyEl.style.left = `${padLeft}px`
+  bodyEl.style.top = `${padTop}px`
+  bodyEl.style.width = `${w}px`
+  bodyEl.style.height = `${h}px`
   el.appendChild(bodyEl)
 
   function setPose(pose) {
@@ -49,7 +65,7 @@ export function createObjectEl({ url, w, h, limbs }) {
     }
   }
 
-  return { el, setPose }
+  return { el, setPose, extW, extH }
 }
 
 function setLimbTransform(limbEl, part, poseDelta) {

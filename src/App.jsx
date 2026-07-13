@@ -5,9 +5,11 @@ import { removeBg, warmup } from './lib/removeBg'
 import { generateLimbs } from './lib/limbs'
 import { loadImage } from './lib/imageUtils'
 import { isShared, uploadObject, listRecent, onNewObject } from './lib/store'
+import { computeExtents } from './lib/objectView'
 import './App.css'
 
-const DISPLAY_MAX = 110 // 사물(몸) 최대 크기(px) — 골대 링(175)을 통과할 수 있어야 한다
+// 모든 사물의 전체 크기(팔다리 포함) — 사진이 크든 작든 전부 이 크기로 통일
+const OBJECT_SIZE = 140
 
 export default function App() {
   const groundRef = useRef(null)
@@ -16,16 +18,17 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(false)
 
+  // 팔다리 포함 전체 크기가 OBJECT_SIZE가 되도록 몸 크기를 정한다
+  function sizedSpec(url, naturalW, naturalH, limbs) {
+    const { extW, extH } = computeExtents(naturalW, naturalH, limbs)
+    const k = OBJECT_SIZE / Math.max(extW, extH)
+    return { url, w: Math.round(naturalW * k), h: Math.round(naturalH * k), limbs }
+  }
+
   // 이미지 URL의 원본 크기를 재서 월드에 떨어뜨린다
   async function dropFromUrl({ url, limbs }) {
     const img = await loadImage(url)
-    const scale = Math.min(DISPLAY_MAX / Math.max(img.naturalWidth, img.naturalHeight), 1)
-    worldRef.current.addObject({
-      url,
-      w: Math.round(img.naturalWidth * scale),
-      h: Math.round(img.naturalHeight * scale),
-      limbs,
-    })
+    worldRef.current.addObject(sizedSpec(url, img.naturalWidth, img.naturalHeight, limbs))
   }
 
   // 물리 세계는 처음 한 번만 만들고, 화면이 사라질 때 정리한다
@@ -75,14 +78,8 @@ export default function App() {
     try {
       const cutout = await removeBg(file)
       const { bodyBlob, width, height, limbs } = await generateLimbs(cutout)
-      const scale = Math.min(DISPLAY_MAX / Math.max(width, height), 1)
       // 내 화면에는 즉시 떨어뜨리고
-      worldRef.current.addObject({
-        url: URL.createObjectURL(bodyBlob),
-        w: Math.round(width * scale),
-        h: Math.round(height * scale),
-        limbs,
-      })
+      worldRef.current.addObject(sizedSpec(URL.createObjectURL(bodyBlob), width, height, limbs))
       // 공유 모드면 업로드해서 다른 사람들 화면에도 떨어지게 한다
       if (isShared) await uploadObject(bodyBlob, limbs)
     } catch (err) {
